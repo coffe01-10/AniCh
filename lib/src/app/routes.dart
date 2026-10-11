@@ -149,6 +149,7 @@ class AppRouter {
     final uri = Uri.parse(name);
     final path = uri.path;
     final segments = uri.pathSegments;
+    final basePath = segments.isEmpty ? AppRoutes.home : '/${segments.first}';
     final args = settings.arguments;
 
     // 未登录访问受保护路由时重定向到登录页
@@ -157,7 +158,7 @@ class AppRouter {
       return _route(const LoginPage(), settings);
     }
 
-    switch (path) {
+    switch (basePath) {
       case AppRoutes.home:
         return _route(const HomePage(), settings);
       case AppRoutes.tags:
@@ -196,7 +197,7 @@ class AppRouter {
         );
       case AppRoutes.vod:
         if (segments.length == 2) {
-          final vodArgs = args is VodArguments ? args : null;
+          final vodArgs = _vodArgs(args);
           return _route(
             BangumiVodPage(
               id: vodArgs?.id ?? int.tryParse(segments[1]) ?? 0,
@@ -302,7 +303,26 @@ class AppRouter {
   }
 
   static BangumiDetailModel? _detailData(Object? args) =>
-      args is BangumiDetailArguments ? args.data : null;
+      args is BangumiDetailArguments
+          ? args.data
+          : (args is BangumiDetailModel ? args : null);
+
+  static VodArguments? _vodArgs(Object? args) {
+    if (args is VodArguments) return args;
+    if (args is Map) {
+      return VodArguments(
+        id: _toInt(args['id']) ?? 0,
+        episode: _toInt(args['episode']),
+        data: args['data'] is BangumiDetailModel
+            ? args['data'] as BangumiDetailModel
+            : null,
+        episodes: args['episodes'] is List<bangumi_episodes_data_>
+            ? args['episodes'] as List<bangumi_episodes_data_>
+            : null,
+      );
+    }
+    return null;
+  }
 
   static thread_list_data_? _threadData(Object? args) => args is ThreadArguments
       ? args.data
