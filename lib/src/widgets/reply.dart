@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
-import 'package:get/get.dart';
 
 class ReplyNewDialog extends StatefulWidget {
   final String id;
@@ -84,7 +83,7 @@ class _ReplyNewDialogState extends State<ReplyNewDialog>
   @override
   void didChangeMetrics() {
     super.didChangeMetrics();
-    final String routePath = Get.currentRoute;
+    final String routePath = ModalRoute.of(context)?.settings.name ?? '';
     if (mounted && (routePath.startsWith('/vod'))) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         // 键盘高度

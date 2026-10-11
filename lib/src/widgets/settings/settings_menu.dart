@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:xs/src/utils/app_style.dart';
 
+/// 设置项：点击弹出底部单选菜单。
 class SettingsMenu<T> extends StatelessWidget {
   final String title;
   final String? subtitle;
@@ -34,13 +34,16 @@ class SettingsMenu<T> extends StatelessWidget {
           ? null
           : Text(
               subtitle!,
-              style: Get.textTheme.bodySmall!.copyWith(color: Colors.grey),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall!
+                  .copyWith(color: Colors.grey),
             ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            valueMap[value]!.tr,
+            valueMap[value] ?? '???',
             style: Theme.of(context)
                 .textTheme
                 .bodyMedium!
@@ -61,8 +64,8 @@ class SettingsMenu<T> extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       showDragHandle: true,
-      useSafeArea: true, //useSafeArea似乎无效
-      builder: (_) => SafeArea(
+      useSafeArea: true,
+      builder: (sheetContext) => SafeArea(
         top: false,
         child: SingleChildScrollView(
           child: Column(
@@ -73,12 +76,12 @@ class SettingsMenu<T> extends StatelessWidget {
                     value: e,
                     groupValue: value,
                     title: Text(
-                      (valueMap[e]?.tr) ?? '???',
-                      style: Get.textTheme.bodyMedium,
+                      valueMap[e] ?? '???',
+                      style: Theme.of(context).textTheme.bodyMedium,
                     ),
-                    onChanged: (e) {
-                      Get.back();
-                      onChanged?.call(e as T);
+                    onChanged: (selected) {
+                      Navigator.of(sheetContext).pop();
+                      onChanged?.call(selected as T);
                     },
                   ),
                 )

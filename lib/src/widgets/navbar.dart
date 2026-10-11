@@ -1,33 +1,24 @@
 import 'package:flutter/material.dart';
 
+/// 底部悬浮导航条目。
 class NavItem {
   const NavItem({required this.icon, required this.title, required this.onTap});
   final IconData icon;
-  final Function onTap;
+  final VoidCallback onTap;
   final String title;
 }
 
-class NavBar extends StatefulWidget {
+/// 胶囊样式的悬浮导航栏。
+class NavBar extends StatelessWidget {
   const NavBar({super.key, required this.children});
   final List<NavItem> children;
 
   @override
-  State<NavBar> createState() => _NavBar();
-}
-
-class _NavBar extends State<NavBar> {
-  @override
   Widget build(BuildContext context) {
-    return _navBar();
-  }
-
-  Widget _navBar() {
     return Stack(
       alignment: Alignment.bottomCenter,
       children: [
         Container(
-          // width: 200,
-          // height: 65,
           padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 5),
           margin:
               const EdgeInsets.only(top: 25, right: 25, left: 25, bottom: 25),
@@ -44,15 +35,12 @@ class _NavBar extends State<NavBar> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisAlignment: MainAxisAlignment.center,
-            children: widget.children.map((item) {
-              // bool isSelected = Get.currentRoute == item.name;
+            children: children.map((item) {
               return Material(
                 color: Colors.transparent,
                 child: InkWell(
                   borderRadius: BorderRadius.circular(100),
-                  onTap: () {
-                    item.onTap();
-                  },
+                  onTap: item.onTap,
                   child: SingleChildScrollView(
                     child: Column(
                       children: [

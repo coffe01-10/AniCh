@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:xs/src/utils/app_style.dart';
 
+/// 设置项：加减按钮调节数值，点击条目弹出滑杆。
 class SettingsNumber extends StatelessWidget {
   final String title;
   final String? subtitle;
@@ -30,7 +30,7 @@ class SettingsNumber extends StatelessWidget {
       visualDensity: VisualDensity.compact,
       title: Text(
         title,
-        style: Get.textTheme.bodyLarge,
+        style: Theme.of(context).textTheme.bodyLarge,
       ),
       shape: RoundedRectangleBorder(
         borderRadius: AppStyle.radius8,
@@ -39,7 +39,10 @@ class SettingsNumber extends StatelessWidget {
           ? null
           : Text(
               subtitle!,
-              style: Get.textTheme.bodySmall!.copyWith(color: Colors.grey),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall!
+                  .copyWith(color: Colors.grey),
             ),
       contentPadding: AppStyle.edgeInsetsL16.copyWith(right: 12),
       trailing: Container(
@@ -65,7 +68,11 @@ class SettingsNumber extends StatelessWidget {
               },
               icon: Icon(
                 Icons.remove,
-                color: Get.textTheme.bodyMedium!.color!.withOpacity(.6),
+                color: Theme.of(context)
+                    .textTheme
+                    .bodyMedium!
+                    .color!
+                    .withOpacity(.6),
               ),
             ),
             Text(
@@ -90,70 +97,107 @@ class SettingsNumber extends StatelessWidget {
               },
               icon: Icon(
                 Icons.add,
-                color: Get.textTheme.bodyMedium!.color!.withOpacity(.6),
+                color: Theme.of(context)
+                    .textTheme
+                    .bodyMedium!
+                    .color!
+                    .withOpacity(.6),
               ),
             ),
           ],
         ),
       ),
-      onTap: () => openSilder(context),
+      onTap: () => openSlider(context),
     );
   }
 
-  void openSilder(BuildContext context) {
-    var newValue = value.obs;
+  void openSlider(BuildContext context) {
     showModalBottomSheet(
       context: context,
       showDragHandle: true,
-      useSafeArea: true, //useSafeArea似乎无效
-      builder: (_) => SafeArea(
+      useSafeArea: true,
+      builder: (sheetContext) => SafeArea(
         top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: AppStyle.edgeInsetsH16,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    title,
-                    style: Get.textTheme.titleMedium,
-                  ),
-                  Obx(
-                    () => Text(
-                      '${newValue.value}$unit',
-                      style: Get.textTheme.titleMedium,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Obx(
-              () => Slider(
-                value: newValue.value.toDouble(),
-                min: min.toDouble(),
-                max: max.toDouble(),
-                onChanged: (e) {
-                  newValue.value = e.toInt();
-                },
-              ),
-            ),
-            Padding(
-              padding: AppStyle.edgeInsetsH16,
-              child: TextButton(
-                onPressed: () {
-                  onChanged?.call(newValue.value);
-                  Get.back();
-                },
-                child: const Text('确定'),
-              ),
-            ),
-            const SizedBox(height: 20)
-          ],
+        child: _SettingsNumberSlider(
+          title: title,
+          initialValue: value,
+          min: min,
+          max: max,
+          unit: unit,
+          onConfirm: onChanged,
         ),
       ),
+    );
+  }
+}
+
+/// 底部滑杆面板。
+class _SettingsNumberSlider extends StatefulWidget {
+  final String title;
+  final int initialValue;
+  final int min;
+  final int max;
+  final String unit;
+  final Function(int)? onConfirm;
+
+  const _SettingsNumberSlider({
+    required this.title,
+    required this.initialValue,
+    required this.min,
+    required this.max,
+    required this.unit,
+    this.onConfirm,
+  });
+
+  @override
+  State<_SettingsNumberSlider> createState() => _SettingsNumberSliderState();
+}
+
+class _SettingsNumberSliderState extends State<_SettingsNumberSlider> {
+  late int _value = widget.initialValue;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: AppStyle.edgeInsetsH16,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                widget.title,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              Text(
+                '$_value${widget.unit}',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ],
+          ),
+        ),
+        Slider(
+          value: _value.toDouble(),
+          min: widget.min.toDouble(),
+          max: widget.max.toDouble(),
+          onChanged: (e) {
+            setState(() => _value = e.toInt());
+          },
+        ),
+        Padding(
+          padding: AppStyle.edgeInsetsH16,
+          child: TextButton(
+            onPressed: () {
+              widget.onConfirm?.call(_value);
+              Navigator.of(context).pop();
+            },
+            child: const Text('确定'),
+          ),
+        ),
+        const SizedBox(height: 20)
+      ],
     );
   }
 }

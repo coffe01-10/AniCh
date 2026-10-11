@@ -1,9 +1,12 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import 'package:xs/src/app/routes.dart';
 import 'package:xs/src/pages/search/models/search_type.dart';
 
+/// 首页/番剧页顶部搜索入口。
+///
+/// 点击后跳转到搜索面板页，[searchType] 决定搜索目标类型。
 class CustomSearchBar extends StatelessWidget {
   const CustomSearchBar(
       {super.key, this.placeholder = '搜索', required this.searchType});
@@ -16,7 +19,6 @@ class CustomSearchBar extends StatelessWidget {
     final ColorScheme colorScheme = Theme.of(context).colorScheme;
     return Expanded(
       child: Container(
-        // width: 250,
         height: 35,
         clipBehavior: Clip.hardEdge,
         decoration: BoxDecoration(
@@ -31,7 +33,10 @@ class CustomSearchBar extends StatelessWidget {
           child: InkWell(
             splashColor: colorScheme.primaryContainer.withOpacity(0.3),
             onTap: () {
-              Get.toNamed('/search_panel', arguments: {'type': searchType});
+              Navigator.of(context).pushNamed(
+                AppRoutes.searchPanel,
+                arguments: SearchPanelArguments(type: searchType),
+              );
             },
             child: Row(
               children: [

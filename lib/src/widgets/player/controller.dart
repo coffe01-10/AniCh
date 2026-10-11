@@ -9,7 +9,6 @@ import 'package:floating/floating.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
-import 'package:get/get.dart';
 import 'package:image_gallery_saver/image_gallery_saver.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
@@ -17,112 +16,136 @@ import 'package:perfect_volume_control/perfect_volume_control.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:xs/src/app/navigator_key.dart';
+import 'package:xs/src/services/danmaku_settings_service.dart';
 import 'package:xs/src/utils/custom_throttle.dart';
 import 'package:xs/src/utils/log.dart';
 import 'package:xs/src/utils/utils.dart';
-import 'package:xs/src/widgets/danmaku_settings/storage.dart';
 import 'package:xs/src/widgets/ns_danmaku/danmaku_controller.dart';
 import 'package:xs/src/widgets/ns_danmaku/models/danmaku_item.dart';
 import 'package:xs/src/widgets/ns_danmaku/models/danmaku_option.dart';
 
+/// 播放器核心资源：media_kit Player / VideoController 与全局 key。
 mixin PlayerMixin {
   GlobalKey<VideoState> globalPlayerKey = GlobalKey<VideoState>();
   GlobalKey globalDanmuKey = GlobalKey();
 
-  // 播放器实例
   late final player = Player();
-
-  // 视频控制器
   late final videoController = VideoController(
     player,
   );
+
+  Timer? hidevolumeTimer;
 }
 
+/// 播放器 UI 状态。
+///
+/// 原实现全部使用 `Rx` 字段，这里改为 `ValueNotifier`，
+/// 视图层用 `ValueListenableBuilder` / `ListenableBuilder` 订阅。
 mixin PlayerStateMixin on PlayerMixin {
-  // 音量控制条计时器
-  Timer? hidevolumeTimer;
+  /// 小窗模式
+  final ValueNotifier<bool> smallWindowState = ValueNotifier<bool>(false);
 
-  // 是否进入桌面端小窗
-  RxBool smallWindowState = false.obs;
+  /// 弹幕开关（跟随用户设置）
+  final ValueNotifier<bool> showDanmakuState = ValueNotifier<bool>(true);
 
-  // 是否显示弹幕
-  RxBool showDanmakuState = true.obs;
+  /// 弹幕输入框
+  final ValueNotifier<bool> showDanmakuTextField = ValueNotifier<bool>(false);
 
-  // 是否显示弹幕发送框
-  RxBool showDanmakuTextField = false.obs;
+  /// 控制器显示状态
+  final ValueNotifier<bool> showControlsState = ValueNotifier<bool>(false);
 
-  // 是否显示控制器
-  RxBool showControlsState = false.obs;
+  /// 设置面板（桌面端右栏）
+  final ValueNotifier<bool> showSettingState = ValueNotifier<bool>(false);
 
-  // 是否显示设置窗口
-  RxBool showSettingState = false.obs;
+  /// 弹幕设置面板
+  final ValueNotifier<bool> showDanmakuSettingState =
+      ValueNotifier<bool>(false);
 
-  // 是否显示弹幕设置窗口
-  RxBool showDanmakuSettingState = false.obs;
+  /// 控制器锁定状态
+  final ValueNotifier<bool> lockControlsState = ValueNotifier<bool>(false);
 
-  // 是否处于锁定控制器状态
-  RxBool lockControlsState = false.obs;
+  /// 全屏状态
+  final ValueNotifier<bool> fullScreenState = ValueNotifier<bool>(false);
 
-  // 是否处于全屏状态
-  RxBool fullScreenState = false.obs;
+  /// 手势提示显示状态
+  final ValueNotifier<bool> showGestureTip = ValueNotifier<bool>(false);
 
-  // 显示手势Tip
-  RxBool showGestureTip = false.obs;
+  /// 手势提示内容
+  final ValueNotifier<String> gestureTipText = ValueNotifier<String>('');
 
-  // 手势Tip文本
-  RxString gestureTipText = ''.obs;
+  /// 底部提示显示状态
+  final ValueNotifier<bool> showBottomTip = ValueNotifier<bool>(false);
 
-  // 显示提示底部Tip
-  RxBool showBottomTip = false.obs;
+  /// 底部提示内容
+  final ValueNotifier<String> bottomTipText = ValueNotifier<String>('');
 
-  // 提示底部Tip文本
-  RxString bottomTipText = ''.obs;
-
-  // 自动隐藏控制器计时器
+  /// 控制器自动隐藏计时
   Timer? hideControlsTimer;
 
-  // 自动隐藏提示计时器
+  /// 提示隐藏计时
   Timer? hideSeekTipTimer;
 
-  // 是否为竖屏直播间
-  var isVertical = false.obs;
+  /// 是否为竖屏视频
+  final ValueNotifier<bool> isVertical = ValueNotifier<bool>(false);
 
-  // 画面尺寸
-  RxInt scaleMode = 0.obs;
+  /// 画面尺寸模式
+  final ValueNotifier<int> scaleMode = ValueNotifier<int>(0);
   BoxFit boxFit = BoxFit.contain;
   double? aspectRatio;
 
-  // 播放倍速
-  RxDouble playerSpeed = 1.0.obs;
+  /// 播放速度
+  final ValueNotifier<double> playerSpeed = ValueNotifier<double>(1.0);
   final List<double> speedsList = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
 
   Widget? danmakuView;
 
-  var showQualites = false.obs;
-  var showLines = false.obs;
+  final ValueNotifier<bool> showQualites = ValueNotifier<bool>(false);
+  final ValueNotifier<bool> showLines = ValueNotifier<bool>(false);
 
-  // 是否显示哔哩哔哩弹幕
-  RxBool bilibiliDanmakuState = true.obs;
-  RxBool bilibiliHmtDanmakuState = true.obs;
+  /// 哔哩哔哩弹幕开关
+  final ValueNotifier<bool> bilibiliDanmakuState = ValueNotifier<bool>(true);
 
-  // 是否显示腾讯视频弹幕
-  RxBool qqDanmakuState = true.obs;
+  /// 哔哩哔哩（港澳台）弹幕开关
+  final ValueNotifier<bool> bilibiliHmtDanmakuState =
+      ValueNotifier<bool>(true);
 
-  // 设置倍速
-  Future setPlaybackSpeed(double rate) async {
+  /// 腾讯视频弹幕开关
+  final ValueNotifier<bool> qqDanmakuState = ValueNotifier<bool>(true);
+
+  /// 供 [ListenableBuilder] 订阅的控制层状态聚合。
+  Listenable? _controlsListenable;
+  Listenable get controlsListenable =>
+      _controlsListenable ??= Listenable.merge([
+        showControlsState,
+        lockControlsState,
+        fullScreenState,
+        smallWindowState,
+        showGestureTip,
+        gestureTipText,
+        showBottomTip,
+        bottomTipText,
+        showDanmakuState,
+        showDanmakuTextField,
+        isVertical,
+        scaleMode,
+      ]);
+
+  // 设置播放速度
+  void setPlaybackSpeed(double rate) {
     try {
       player.setRate(rate);
     } catch (e) {
       debugPrint(e.toString());
     }
-    playerSpeed(rate);
+    playerSpeed.value = rate;
   }
 
-  // 获取视频分辨率文本
+  // 播放信息
   String getRatioText() {
-    if (player.state.width != null) {
+    try {
       return ' (${player.state.width}x${player.state.height})';
-    } else {
+    } catch (e) {
       return '';
     }
   }
@@ -133,6 +156,7 @@ mixin PlayerStateMixin on PlayerMixin {
     hideControlsTimer?.cancel();
   }
 
+  // 锁定/解锁控制器
   void setLockState() {
     lockControlsState.value = !lockControlsState.value;
     if (lockControlsState.value) {
@@ -148,71 +172,64 @@ mixin PlayerStateMixin on PlayerMixin {
     resetHideControlsTimer();
   }
 
-  // 开始隐藏控制器计时
-  // - 当点击控制器上时功能时需要重新计时
+  // 重置隐藏控制器计时
   void resetHideControlsTimer() {
     hideControlsTimer?.cancel();
-
     hideControlsTimer = Timer(
-      const Duration(
-        seconds: 5,
-      ),
+      const Duration(seconds: 3),
       hideControls,
     );
   }
 
+  // 更新画面尺寸
   void updateScaleMode(int value) {
-    scaleMode(value);
-    if (player.state.width != null && player.state.height != null) {
+    if (value == 0) {
       aspectRatio = player.state.width! / player.state.height!;
-    }
-
-    if (scaleMode.value == 0) {
       boxFit = BoxFit.contain;
-    } else if (scaleMode.value == 1) {
+    } else if (value == 1) {
+      aspectRatio = null;
       boxFit = BoxFit.fill;
-    } else if (scaleMode.value == 2) {
+    } else if (value == 2) {
+      aspectRatio = null;
       boxFit = BoxFit.cover;
-    } else if (scaleMode.value == 3) {
-      boxFit = BoxFit.contain;
+    } else if (value == 3) {
       aspectRatio = 16 / 9;
-    } else if (scaleMode.value == 4) {
       boxFit = BoxFit.contain;
+    } else if (value == 4) {
       aspectRatio = 4 / 3;
+      boxFit = BoxFit.contain;
     }
-
-    globalPlayerKey.currentState?.update(
-      aspectRatio: aspectRatio,
-      fit: boxFit,
-    );
+    scaleMode.value = value;
   }
 }
 
-mixin PlayerDanmakuMixin on PlayerStateMixin {
-  // 弹幕控制器
+/// 弹幕相关状态与方法。
+mixin PlayerDanmakuMixin on PlayerMixin, PlayerStateMixin {
   DanmakuController? danmakuController;
 
-  // 弹幕输入框控制器
   FocusNode danmakuTextFieldFocusNode = FocusNode();
   TextEditingController textEditingController = TextEditingController();
 
-  RxDouble danmakuStrokeWidth = 1.0.obs;
-  RxInt danmakuFontWeight = FontWeight.bold.index.obs;
-  RxBool strokeText = true.obs;
+  // 发送弹幕样式
+  final ValueNotifier<double> danmakuStrokeWidth = ValueNotifier<double>(1.0);
+  final ValueNotifier<int> danmakuFontWeight =
+      ValueNotifier<int>(FontWeight.bold.index);
+  final ValueNotifier<bool> strokeText = ValueNotifier<bool>(true);
 
-  RxBool textFormatStatus = true.obs;
-  RxString danmakuText = ''.obs;
-  RxString danmakuColor = '#ffffff'.obs;
-  RxInt danmakuTypeIndex = 1.obs;
+  final ValueNotifier<bool> textFormatStatus = ValueNotifier<bool>(true);
+  final ValueNotifier<String> danmakuText = ValueNotifier<String>('');
+  final ValueNotifier<String> danmakuColor = ValueNotifier<String>('#ffffff');
+  final ValueNotifier<int> danmakuTypeIndex = ValueNotifier<int>(1);
 
   void initDanmakuController(DanmakuController e) {
+    final settings = DanmakuSettingsService.instance;
     danmakuController = e;
     danmakuController?.updateOption(
       DanmakuOption(
-          fontSize: DanmakuSettingsStorage.danmakuSize.value,
-          area: DanmakuSettingsStorage.danmakuArea.value,
-          duration: DanmakuSettingsStorage.danmakuSpeed.value,
-          opacity: DanmakuSettingsStorage.danmakuOpacity.value,
+          fontSize: settings.danmakuSize.value,
+          area: settings.danmakuArea.value,
+          duration: settings.danmakuSpeed.value,
+          opacity: settings.danmakuOpacity.value,
           strokeWidth: danmakuStrokeWidth.value,
           fontWeight: FontWeight.values[danmakuFontWeight.value],
           strokeText: strokeText.value),
@@ -236,12 +253,16 @@ mixin PlayerDanmakuMixin on PlayerStateMixin {
   }
 }
 
+/// 系统层交互：屏幕方向、亮度、音量、小窗、截图等。
 mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
   final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
   final screenBrightness = ScreenBrightness();
 
   final pip = Floating();
   StreamSubscription<PiPStatus>? _pipSubscription;
+
+  /// 根 Navigator 所在屏幕尺寸（替代原 `Get.width`/`Get.height`）。
+  Size get _screenSize => MediaQuery.sizeOf(appContext);
 
   // 初始化一些系统状态
   void initSystem() async {
@@ -257,7 +278,7 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
   }
 
   // 释放一些系统状态
-  Future resetSystem() async {
+  Future<void> resetSystem() async {
     _pipSubscription?.cancel();
     // pip.dispose();
     await SystemChrome.setEnabledSystemUIMode(
@@ -385,7 +406,7 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
   }
 
   // 设置横屏
-  Future setLandscapeOrientation() async {
+  Future<void> setLandscapeOrientation() async {
     if (await beforeIOS16()) {
       AutoOrientation.landscapeAutoMode();
     } else {
@@ -397,7 +418,7 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
   }
 
   // 设置竖屏
-  Future setPortraitOrientation() async {
+  Future<void> setPortraitOrientation() async {
     if (await beforeIOS16()) {
       AutoOrientation.portraitAutoMode();
     } else {
@@ -417,7 +438,7 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
     }
   }
 
-  Future saveScreenshot() async {
+  Future<void> saveScreenshot() async {
     try {
       SmartDialog.showLoading(msg: '正在保存截图');
       //检查相册权限,仅iOS需要
@@ -467,7 +488,7 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
   // 开启小窗播放前弹幕状态
   bool danmakuStateBeforePIP = false;
 
-  Future enablePIP() async {
+  Future<void> enablePIP() async {
     if (!Platform.isAndroid) {
       return;
     }
@@ -483,7 +504,7 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
     // }
     danmakuController?.clear();
     //关闭控制器
-    showControlsState(false);
+    showControlsState.value = false;
 
     await pip.enable(const ImmediatePiP(aspectRatio: Rational.landscape()));
 
@@ -496,8 +517,12 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
   }
 }
 
+/// 手势控制（单击/双击/滑动调亮度音量与进度）。
 mixin PlayerGestureControlMixin
     on PlayerStateMixin, PlayerMixin, PlayerSystemMixin {
+  /// 根 Navigator 所在屏幕尺寸（替代原 `Get.width`/`Get.height`）。
+  Size get _screenSize => MediaQuery.sizeOf(appContext);
+
   // 单击显示/隐藏控制器
   void onTap() {
     if (showControlsState.value) {
@@ -524,14 +549,6 @@ mixin PlayerGestureControlMixin
     if (Platform.isAndroid || Platform.isIOS) {
       return;
     }
-    // final screenHeight = MediaQuery.of(context).size.height;
-    // final targetPosition = screenHeight * 0.25; // 计算屏幕顶部25%的位置
-    // if (event.position.dy <= targetPosition ||
-    //     event.position.dy >= targetPosition * 3) {
-    //   if (!showControlsState.value) {
-    //     showControls();
-    //   }
-    // }
     if (!showControlsState.value) {
       showControls();
     }
@@ -564,13 +581,14 @@ mixin PlayerGestureControlMixin
     }
 
     final dy = details.globalPosition.dy;
+    final screenHeight = _screenSize.height;
     // 开始位置必须是中间2/4的位置
-    if (dy < Get.height * 0.25 || dy > Get.height * 0.75) {
+    if (dy < screenHeight * 0.25 || dy > screenHeight * 0.75) {
       return;
     }
 
     verStartPosition = dy;
-    leftVerticalDrag = details.globalPosition.dx < Get.width / 2;
+    leftVerticalDrag = details.globalPosition.dx < _screenSize.width / 2;
 
     throttle = DelayedThrottle(200);
 
@@ -579,9 +597,7 @@ mixin PlayerGestureControlMixin
     }
     verticalDragging = true;
     showGestureTip.value = true;
-    if (Platform.isAndroid || Platform.isIOS) {
-      _currentVolume = await PerfectVolumeControl.volume;
-    }
+    _currentVolume = await PerfectVolumeControl.volume;
     if (Platform.isAndroid || Platform.isIOS || Platform.isMacOS) {
       _currentBrightness = await screenBrightness.current;
     }
@@ -596,8 +612,6 @@ mixin PlayerGestureControlMixin
     if (!Platform.isAndroid && !Platform.isIOS) {
       return;
     }
-    //String text = '';
-    //double value = 0.0;
 
     Log.logPrint('$verStartPosition/${e.globalPosition.dy}');
 
@@ -614,14 +628,14 @@ mixin PlayerGestureControlMixin
     double value = 0.0;
     double seek;
     if (dy > verStartPosition) {
-      value = ((dy - verStartPosition) / (Get.height * 0.5));
+      value = ((dy - verStartPosition) / (_screenSize.height * 0.5));
 
       seek = _currentVolume - value;
       if (seek < 0) {
         seek = 0;
       }
     } else {
-      value = ((dy - verStartPosition) / (Get.height * 0.5));
+      value = ((dy - verStartPosition) / (_screenSize.height * 0.5));
       seek = value.abs() + _currentVolume;
       if (seek > 1) {
         seek = 1;
@@ -650,7 +664,7 @@ mixin PlayerGestureControlMixin
   void setGestureBrightness(double dy) {
     double value = 0.0;
     if (dy > verStartPosition) {
-      value = ((dy - verStartPosition) / (Get.height * 0.5));
+      value = ((dy - verStartPosition) / (_screenSize.height * 0.5));
 
       var seek = _currentBrightness - value;
       if (seek < 0) {
@@ -661,7 +675,7 @@ mixin PlayerGestureControlMixin
       gestureTipText.value = '亮度 ${(seek * 100).toInt()}%';
       Log.logPrint(value);
     } else {
-      value = ((dy - verStartPosition) / (Get.height * 0.5));
+      value = ((dy - verStartPosition) / (_screenSize.height * 0.5));
       var seek = value.abs() + _currentBrightness;
       if (seek > 1) {
         seek = 1;
@@ -697,20 +711,15 @@ mixin PlayerGestureControlMixin
     }
 
     final dx = details.globalPosition.dx;
-    // if (dx < Get.width || dx > Get.width) {
-    //   return;
-    // }
 
     horizontalStartPosition = dx;
-    horizontalDrag = details.globalPosition.dx < Get.width / 2;
+    horizontalDrag = details.globalPosition.dx < _screenSize.width / 2;
 
     throttle = DelayedThrottle(200);
 
     horizontalDragging = true;
     showGestureTip.value = true;
     _currentDuration = player.state.duration;
-    // print(
-    //     'Horizontal drag start at: ${details.globalPosition} $_currentDuration');
   }
 
   // 横向手势更新
@@ -719,18 +728,15 @@ mixin PlayerGestureControlMixin
       return;
     }
     if (horizontalDragging == false) return;
-    //String text = '';
     double value = 0.0;
-    value =
-        ((e.globalPosition.dx - horizontalStartPosition) / (Get.width * 0.5));
+    value = ((e.globalPosition.dx - horizontalStartPosition) /
+        (_screenSize.width * 0.5));
     _currentPosition = max(
         0,
         min(
             player.state.position.inSeconds +
                 _currentDuration.inSeconds * (value * 0.5),
             _currentDuration.inSeconds.toDouble()));
-    // Log.logPrint('$horizontalStartPosition/${e.globalPosition.dx}');
-    // Log.logPrint('$_currentPosition/$value');
     gestureTipText.value =
         '${Duration(seconds: _currentPosition.toInt()).toString().split('.').first}/${_currentDuration.toString().split('.').first}';
   }
@@ -752,20 +758,22 @@ mixin PlayerGestureControlMixin
   }
 }
 
-class PlayerController extends GetxController
+/// 播放器控制器。
+///
+/// 原 `GetxController` 改为 `ChangeNotifier`：
+/// - `onInit` 中的初始化移入构造函数；
+/// - `onClose` 中的释放移入 [dispose]（无法 `await` 的资源异步释放）；
+/// - 子类通过重写 [mediaEnd]/[mediaError] 响应播放结束与错误。
+class PlayerController extends ChangeNotifier
     with
         PlayerMixin,
         PlayerStateMixin,
         PlayerDanmakuMixin,
         PlayerSystemMixin,
         PlayerGestureControlMixin {
-  @override
-  void onInit() {
+  PlayerController() {
     initSystem();
     initStream();
-    //设置音量
-    // player.setVolume(AppSettingsController.instance.playerVolume.value);
-    super.onInit();
   }
 
   StreamSubscription<String>? _errorSubscription;
@@ -773,6 +781,8 @@ class PlayerController extends GetxController
   StreamSubscription? _widthSubscription;
   StreamSubscription? _heightSubscription;
   StreamSubscription? _logSubscription;
+
+  bool _disposed = false;
 
   void initStream() {
     _errorSubscription = player.stream.error.listen((event) {
@@ -782,7 +792,6 @@ class PlayerController extends GetxController
       if (event.contains('no sound.')) {
         return;
       }
-      //SmartDialog.showToast(event);
       mediaError(event);
     });
 
@@ -817,8 +826,10 @@ class PlayerController extends GetxController
     _pipSubscription?.cancel();
   }
 
+  /// 播放结束回调（子类可重写）。
   void mediaEnd() {}
 
+  /// 播放错误回调（子类可重写）。
   void mediaError(String error) {}
 
   void showDebugInfo() {
@@ -921,17 +932,22 @@ class PlayerController extends GetxController
   }
 
   @override
-  void onClose() async {
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
     Log.w('播放器关闭');
     if (smallWindowState.value) {
       exitSmallWindow();
     }
+    hideControlsTimer?.cancel();
+    hideSeekTipTimer?.cancel();
     textEditingController.dispose();
     danmakuTextFieldFocusNode.dispose();
     disposeStream();
     disposeDanmakuController();
-    await resetSystem();
-    await player.dispose();
-    super.onClose();
+    // dispose 不能 await，系统状态恢复与播放器释放异步执行
+    unawaited(resetSystem());
+    unawaited(player.dispose());
+    super.dispose();
   }
 }

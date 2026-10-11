@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:xs/src/utils/app_style.dart';
 
+/// 设置项：标题 + 可选副标题 + 右侧值/箭头。
 class SettingsAction extends StatelessWidget {
   final String title;
   final String? subtitle;
@@ -27,12 +27,10 @@ class SettingsAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      // visualDensity: VisualDensity.compact,
       leading: leading,
       title: Text(
         title,
         style: TextStyle(color: color ?? color),
-        // style: Theme.of(context).textTheme.bodyLarge,
       ),
       shape: RoundedRectangleBorder(
         borderRadius: AppStyle.radius8,
@@ -42,7 +40,10 @@ class SettingsAction extends StatelessWidget {
           ? null
           : Text(
               subtitle!,
-              style: Get.textTheme.bodySmall!.copyWith(color: Colors.grey),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall!
+                  .copyWith(color: Colors.grey),
             ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,

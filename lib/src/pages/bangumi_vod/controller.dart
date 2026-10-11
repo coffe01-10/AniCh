@@ -1,21 +1,22 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:get/get.dart';
-import 'package:get_storage/get_storage.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:xs/protobuf/bangumi.pb.dart';
 import 'package:xs/protobuf/danmaku.pb.dart';
 import 'package:xs/src/apis/bangumi.dart';
+import 'package:xs/src/app/navigator_key.dart';
 import 'package:xs/src/pages/bangumi_detail/models/bangumi_detail_model.dart';
 import 'package:xs/src/pages/bangumi_vod/models/qq_video_model.dart';
-import 'package:xs/src/pages/settings/storage/play_history_storage.dart';
+import 'package:xs/src/services/danmaku_settings_service.dart';
+import 'package:xs/src/services/danmaku_shield_service.dart';
+import 'package:xs/src/services/loading_state.dart';
+import 'package:xs/src/services/play_history_service.dart';
 import 'package:xs/src/utils/time.dart';
-import 'package:xs/src/widgets/danmaku_settings/storage.dart';
-import 'package:xs/src/widgets/danmaku_shield/storage.dart';
 import 'package:xs/src/utils/app_style.dart';
 import 'package:xs/src/utils/color.dart';
 import 'package:xs/src/utils/log.dart';
@@ -29,45 +30,68 @@ import 'package:xs/src/widgets/player/controller.dart';
 import 'package:xs/src/widgets/settings/settings_card.dart';
 import 'package:xs/src/widgets/settings/settings_switch.dart';
 
-final box = GetStorage('playHistory');
 const String assetName = 'assets/images/no_image.svg';
 final Widget noImage = SvgPicture.asset(assetName);
 
-class BangumiVodPageController extends PlayerController
-    with StateMixin, WidgetsBindingObserver, GetTickerProviderStateMixin {
-  final int pId;
-  final int pEpisode;
+/// 番剧播放页控制器。
+///
+/// 原实现为 `GetxController + StateMixin`，重写后：
+/// - 加载状态改为 [LoadStatus] + [notifyListeners]；
+/// - 响应式字段改为 `ValueNotifier`；
+/// - `TabController`/`AnimationController` 由页面 [State] 通过
+///   [attach]/[detach] 注入与销毁；
+/// - 播放器流订阅统一由 [_bindPlayerStreams] 建立一次并在
+///   [dispose] 中取消（原实现在 build 中重复订阅）。
+class BangumiVodPageController extends PlayerController {
   BangumiVodPageController({
-    required this.pId,
-    required this.pEpisode,
-  }) {
-    rxId = pId.obs;
-    rxEpisode = pEpisode.obs;
+    required int pId,
+    required int pEpisode,
+  })  : idNotifier = ValueNotifier<int>(pId),
+        episodeNotifier = ValueNotifier<int>(pEpisode) {
+    get();
+    _bindPlayerStreams();
   }
 
-  late RxInt rxId;
-  int get id => rxId.value;
-  late RxInt rxEpisode;
-  int get episode => rxEpisode.value;
+  /// 番剧 id（随换集/换番更新）。
+  final ValueNotifier<int> idNotifier;
+  int get id => idNotifier.value;
 
-  // 音量
-  RxDouble playerVolume = 100.0.obs;
+  /// 当前选集。
+  final ValueNotifier<int> episodeNotifier;
+  int get episode => episodeNotifier.value;
 
-  // 线路数据
-  RxList<vod_item_> playUrls = RxList<vod_item_>();
+  /// 切换选集并重新加载播放数据。
+  void setEpisode(int value) {
+    if (value == episode) return;
+    episodeNotifier.value = value;
+    debugPrint('切换到第$episode集');
+    player.stop();
+    danmakuController?.clear();
+    get();
+  }
 
-  // 当前线路
-  var currentLineIndex = -1;
-  var currentLineInfo = ''.obs;
+  /// 音量
+  final ValueNotifier<double> playerVolume = ValueNotifier<double>(100.0);
 
-  // 加载失败
-  var loadError = false.obs;
+  /// 线路数据
+  final ValueNotifier<List<vod_item_>> playUrls =
+      ValueNotifier<List<vod_item_>>([]);
+
+  /// 当前线路
+  int currentLineIndex = -1;
+  final ValueNotifier<String> currentLineInfo = ValueNotifier<String>('');
+
+  /// 详情数据加载状态
+  LoadStatus status = LoadStatus.initial;
+
+  /// 加载失败
+  bool loadError = false;
   Error? error;
 
-  // 退出
-  RxBool leave = false.obs;
+  /// 退出标记（用于终止后台弹幕拉取循环）
+  bool leave = false;
 
-  // 导航栏
+  /// 导航栏
   final List<Tab> tabs = <Tab>[
     const Tab(
       child: Align(
@@ -83,12 +107,12 @@ class BangumiVodPageController extends PlayerController
     ),
   ];
 
-  late TabController tabController;
-  late final AnimationController animationController;
-  RxInt tabIndex = 0.obs;
+  TabController? tabController;
+  AnimationController? animationController;
+  final ValueNotifier<int> tabIndex = ValueNotifier<int>(0);
 
-  late final BangumiDetailModel data;
-  late final bangumi_episodes_data_ episodeDetail;
+  BangumiDetailModel? data;
+  bangumi_episodes_data_? episodeDetail;
   List<bangumi_episodes_data_> episodes = [];
   List<data_> danmakuList = [];
   List<bilibili_danmaku_item_> bilibiliDanmakuList = [];
@@ -100,253 +124,275 @@ class BangumiVodPageController extends PlayerController
 
   Map<dynamic, dynamic> bangumiInfo = {'episodes': []};
 
-  RxInt lastPosition = 0.obs;
+  final ValueNotifier<int> lastPosition = ValueNotifier<int>(0);
 
-  RxBool playing = true.obs;
+  final ValueNotifier<bool> playing = ValueNotifier<bool>(true);
 
-  @override
-  void onInit() {
-    WidgetsBinding.instance.addObserver(this);
+  final List<StreamSubscription> _playerSubscriptions = [];
 
-    get();
+  Listenable? _pageListenable;
 
-    tabController =
-        TabController(vsync: this, length: tabs.length, initialIndex: 0);
-    tabController.addListener(() {
-      tabIndex(tabController.index);
-    });
+  /// 页面级聚合通知器。
+  ///
+  /// 合并 [ChangeNotifier] 本身（data/episodes/status 等普通字段）
+  /// 与播放器控制层、选集、线路等 `ValueNotifier`，
+  /// 供页面与控制层 [ListenableBuilder] 统一订阅。
+  Listenable get pageListenable => _pageListenable ??= Listenable.merge([
+        this,
+        controlsListenable,
+        episodeNotifier,
+        idNotifier,
+        playUrls,
+        currentLineInfo,
+        playing,
+        tabIndex,
+        playerSpeed,
+        danmakuTypeIndex,
+        danmakuColor,
+        textFormatStatus,
+      ]);
 
-    animationController = AnimationController(
-      vsync: this,
+  /// 由页面 [State] 注入 vsync 驱动的控制器。
+  void attach(TickerProvider vsync) {
+    tabController ??= TabController(
+      vsync: vsync,
+      length: tabs.length,
+      initialIndex: 0,
+    )..addListener(() {
+        tabIndex.value = tabController!.index;
+      });
+    animationController ??= AnimationController(
+      vsync: vsync,
       duration: const Duration(milliseconds: 500),
     );
-
-    super.onInit();
   }
 
-  void listen() {
-    int position = 0;
-    int inSeconds = 0;
+  /// 页面销毁时释放 [attach] 创建的资源。
+  void detach() {
+    tabController?.dispose();
+    tabController = null;
+    animationController?.dispose();
+    animationController = null;
+  }
 
-    player.stream.error.listen((event) {
-      // if (RegExp('Failed to open').hasMatch(event)) {
-      //   SmartDialog.showToast(event);
-      // }
-      SmartDialog.showToast('播放失败: $event');
-    });
+  /// 上次弹幕分发位置（0.1s 精度）
+  int _danmakuPosition = 0;
 
-    player.stream.completed.listen((event) {
-      if (event) {
-        showControls();
-      }
-    });
+  /// 上次历史写入时的播放秒数
+  int _historySeconds = 0;
 
-    player.stream.playing.listen((event) {
-      playing(player.state.playing);
-      showDanmakuState.value = DanmakuSettingsStorage.danmakuEnable.value;
-      bilibiliDanmakuState.value =
-          DanmakuSettingsStorage.bilibiliDanmakuEnable.value;
-      bilibiliHmtDanmakuState.value =
-          DanmakuSettingsStorage.bilibiliHmtDanmakuEnable.value;
-      qqDanmakuState.value = DanmakuSettingsStorage.qqDanmakuEnable.value;
-      if (showDanmakuState.value && danmakuController is DanmakuController) {
+  /// 建立播放器事件流订阅（仅调用一次）。
+  void _bindPlayerStreams() {
+    _playerSubscriptions.addAll([
+      player.stream.error.listen((event) {
+        SmartDialog.showToast('播放失败: $event');
+      }),
+      player.stream.completed.listen((event) {
         if (event) {
-          int currentPosition = player.state.position.inMilliseconds ~/ 1000;
-          if (position != currentPosition) {
-            position = currentPosition;
-          }
-          danmakuController!.resume();
-        } else {
-          danmakuController!.pause();
+          showControls();
         }
-      }
-    });
-
-    player.stream.position.listen((event) async {
-      int currentinSeconds = event.inSeconds;
-      if (currentinSeconds > 0 && lastPosition.value > 0) {
-        final thisLastPosition = Duration(seconds: lastPosition.value);
-        lastPosition(0);
-        await player.seek(thisLastPosition);
-        debugPrint('跳转到$thisLastPosition');
-      }
-      if ((inSeconds - currentinSeconds).abs() >= 5) {
-        inSeconds = currentinSeconds;
-        final date = DateTime.now().millisecondsSinceEpoch;
-        bangumiInfo['id'] = id;
-        bangumiInfo['title'] = data.title;
-        bangumiInfo['date'] = date;
-        bangumiInfo['image'] = data.image;
-        final episodeInfo = {
-          'episode': episode,
-          'title': '第$episode集 ${episodeDetail.title}',
-          'position': currentinSeconds,
-          'date': date,
-          'image': episodeDetail.image
-        };
-        final item = bangumiInfo['episodes'].firstWhere(
-          (e) {
-            return e['episode'] == episode;
-          },
-          orElse: () => {},
-        );
-        if (item.isEmpty) {
-          bangumiInfo['episodes'].add(episodeInfo);
-          // print(bangumiInfo);
-        } else {
-          item['position'] = episodeInfo['position'];
-          item['date'] = episodeInfo['date'];
-          // print(bangumiInfo);
-        }
-        box.write('$id', bangumiInfo);
-        // print(box.getValues());
-      }
-      if (showDanmakuState.value && danmakuController is DanmakuController) {
-        int currentPosition = event.inMilliseconds ~/ 100;
-        if (position != currentPosition) {
-          position = currentPosition;
-          // 默认弹幕
-          if (danmakuList.isNotEmpty) {
-            final currentDanmakuList = danmakuList.where((e) {
-              return double.parse(e.time.toStringAsFixed(1)) ==
-                      currentPosition / 10 &&
-                  DanmakuShieldStorage.shieldCheck(e.text);
-            });
-            final currentDanmakuListQueue = currentDanmakuList.map((e) {
-              return DanmakuItem(e.text,
-                  color: ColorUtil.fromHex(e.color),
-                  // time: currentPosition,
-                  time: e.time,
-                  type: DanmakuUtils.getPosition(e.type));
-            }).toList();
-            try {
-              danmakuController!.addItems(currentDanmakuListQueue);
-            } catch (e) {
-              debugPrint(e.toString());
+      }),
+      player.stream.playing.listen((event) {
+        playing.value = player.state.playing;
+        final settings = DanmakuSettingsService.instance;
+        showDanmakuState.value = settings.danmakuEnable.value;
+        bilibiliDanmakuState.value = settings.bilibiliDanmakuEnable.value;
+        bilibiliHmtDanmakuState.value =
+            settings.bilibiliHmtDanmakuEnable.value;
+        qqDanmakuState.value = settings.qqDanmakuEnable.value;
+        if (showDanmakuState.value && danmakuController is DanmakuController) {
+          if (event) {
+            int currentPosition =
+                player.state.position.inMilliseconds ~/ 1000;
+            if (_danmakuPosition != currentPosition) {
+              _danmakuPosition = currentPosition;
             }
-          }
-          // 哔哩哔哩弹幕
-          if (bilibiliDanmakuList.isNotEmpty && bilibiliDanmakuState.value) {
-            final currentDanmakuList = bilibiliDanmakuList.where((e) {
-              // return (e.progress / 1000).floor() == currentPosition;
-              return double.parse((e.progress / 1000).toStringAsFixed(1)) ==
-                      currentPosition / 10 &&
-                  DanmakuShieldStorage.shieldCheck(e.content);
-            });
-            final currentDanmakuListQueue = currentDanmakuList.map((e) {
-              return DanmakuItem(e.content,
-                  color: ColorUtil.decimalToColor(e.color),
-                  // time: currentPosition,
-                  time: e.progress / 1000,
-                  type: DanmakuUtils.getBilibiliPosition(e.mode));
-            }).toList();
-            try {
-              danmakuController!.addItems(currentDanmakuListQueue);
-            } catch (e) {
-              debugPrint(e.toString());
-            }
-          }
-          // 哔哩哔哩(港澳台)弹幕
-          if (bilibiliHmtDanmakuList.isNotEmpty &&
-              bilibiliHmtDanmakuState.value) {
-            final currentDanmakuList = bilibiliHmtDanmakuList.where((e) {
-              // return (e.progress / 1000).floor() == currentPosition;
-              return double.parse((e.progress / 1000).toStringAsFixed(1)) ==
-                      currentPosition / 10 &&
-                  DanmakuShieldStorage.shieldCheck(e.content);
-            });
-            final currentDanmakuListQueue = currentDanmakuList.map((e) {
-              return DanmakuItem(e.content,
-                  color: ColorUtil.decimalToColor(e.color),
-                  // time: currentPosition,
-                  time: e.progress / 1000,
-                  type: DanmakuUtils.getBilibiliPosition(e.mode));
-            }).toList();
-            try {
-              danmakuController!.addItems(currentDanmakuListQueue);
-            } catch (e) {
-              debugPrint(e.toString());
-            }
-          }
-          // 腾讯视频弹幕
-          if (qqDanmakuList.isNotEmpty && qqDanmakuState.value) {
-            final currentDanmakuList = qqDanmakuList.where((e) {
-              // return (int.parse(e.timeOffset ?? '0') / 1000).floor() ==
-              //     currentPosition;
-              return double.parse((int.parse(e.timeOffset ?? '0') / 1000)
-                          .toStringAsFixed(1)) ==
-                      currentPosition / 10 &&
-                  DanmakuShieldStorage.shieldCheck(e.content);
-            });
-            final currentDanmakuListQueue = currentDanmakuList.map((e) {
-              return DanmakuItem(e.content ?? '一条弹幕',
-                  color: Colors.white,
-                  // time: currentPosition,
-                  time: int.parse(e.timeOffset ?? '0') / 1000,
-                  type: DanmakuUtils.getQQPosition(e.rickType ?? 1));
-            }).toList();
-            try {
-              danmakuController!.addItems(currentDanmakuListQueue);
-            } catch (e) {
-              debugPrint(e.toString());
-            }
+            danmakuController!.resume();
+          } else {
+            danmakuController!.pause();
           }
         }
-      }
-    });
+      }),
+      player.stream.position.listen((event) async {
+        int currentinSeconds = event.inSeconds;
+        if (currentinSeconds > 0 && lastPosition.value > 0) {
+          final thisLastPosition = Duration(seconds: lastPosition.value);
+          lastPosition.value = 0;
+          await player.seek(thisLastPosition);
+          debugPrint('跳转到$thisLastPosition');
+        }
+        if ((_historySeconds - currentinSeconds).abs() >= 5) {
+          _historySeconds = currentinSeconds;
+          _savePlayHistory(currentinSeconds);
+        }
+        _dispatchDanmaku(event.inMilliseconds);
+      }),
+    ]);
   }
 
-  // 番剧数据
-  void setBangumiData(data) async {
+  /// 每 5 秒写入一次观看历史（数据结构与原 `playHistory` 桶一致）。
+  void _savePlayHistory(int currentinSeconds) {
+    final detail = data;
+    final ep = episodeDetail;
+    if (detail == null || ep == null) return;
+    final date = DateTime.now().millisecondsSinceEpoch;
+    bangumiInfo['id'] = id;
+    bangumiInfo['title'] = detail.title;
+    bangumiInfo['date'] = date;
+    bangumiInfo['image'] = detail.image;
+    final episodeInfo = {
+      'episode': episode,
+      'title': '第$episode集 ${ep.title}',
+      'position': currentinSeconds,
+      'date': date,
+      'image': ep.image,
+    };
+    final item = bangumiInfo['episodes'].firstWhere(
+      (e) => e['episode'] == episode,
+      orElse: () => {},
+    );
+    if (item.isEmpty) {
+      bangumiInfo['episodes'].add(episodeInfo);
+    } else {
+      item['position'] = episodeInfo['position'];
+      item['date'] = episodeInfo['date'];
+    }
+    PlayHistoryService.instance.save(id, bangumiInfo);
+  }
+
+  /// 按播放进度分发弹幕（内部弹幕 + 哔哩哔哩 + 港澳台 + 腾讯视频）。
+  void _dispatchDanmaku(int positionMs) {
+    if (!showDanmakuState.value || danmakuController is! DanmakuController) {
+      return;
+    }
+    int current = positionMs ~/ 100;
+    if (current == _danmakuPosition) return;
+    _danmakuPosition = current;
+    final shield = DanmakuShieldService.instance;
+    final danmaku = danmakuController!;
+    void add(List<DanmakuItem> items) {
+      try {
+        danmaku.addItems(items);
+      } catch (e) {
+        debugPrint(e.toString());
+      }
+    }
+
+    // 默认弹幕
+    if (danmakuList.isNotEmpty) {
+      add(danmakuList
+          .where((e) =>
+              double.parse(e.time.toStringAsFixed(1)) == current / 10 &&
+              shield.shieldCheck(e.text))
+          .map((e) => DanmakuItem(
+                e.text,
+                color: ColorUtil.fromHex(e.color),
+                time: e.time,
+                type: DanmakuUtils.getPosition(e.type),
+              ))
+          .toList());
+    }
+    // 哔哩哔哩弹幕
+    if (bilibiliDanmakuList.isNotEmpty && bilibiliDanmakuState.value) {
+      add(bilibiliDanmakuList
+          .where((e) =>
+              double.parse((e.progress / 1000).toStringAsFixed(1)) ==
+                  current / 10 &&
+              shield.shieldCheck(e.content))
+          .map((e) => DanmakuItem(
+                e.content,
+                color: ColorUtil.decimalToColor(e.color),
+                time: e.progress / 1000,
+                type: DanmakuUtils.getBilibiliPosition(e.mode),
+              ))
+          .toList());
+    }
+    // 哔哩哔哩(港澳台)弹幕
+    if (bilibiliHmtDanmakuList.isNotEmpty &&
+        bilibiliHmtDanmakuState.value) {
+      add(bilibiliHmtDanmakuList
+          .where((e) =>
+              double.parse((e.progress / 1000).toStringAsFixed(1)) ==
+                  current / 10 &&
+              shield.shieldCheck(e.content))
+          .map((e) => DanmakuItem(
+                e.content,
+                color: ColorUtil.decimalToColor(e.color),
+                time: e.progress / 1000,
+                type: DanmakuUtils.getBilibiliPosition(e.mode),
+              ))
+          .toList());
+    }
+    // 腾讯视频弹幕
+    if (qqDanmakuList.isNotEmpty && qqDanmakuState.value) {
+      add(qqDanmakuList
+          .where((e) =>
+              double.parse(
+                  (int.parse(e.timeOffset ?? '0') / 1000)
+                      .toStringAsFixed(1)) ==
+                  current / 10 &&
+              shield.shieldCheck(e.content))
+          .map((e) => DanmakuItem(
+                e.content ?? '一条弹幕',
+                color: Colors.white,
+                time: int.parse(e.timeOffset ?? '0') / 1000,
+                type: DanmakuUtils.getQQPosition(e.rickType ?? 1),
+              ))
+          .toList());
+    }
+  }
+
+  /// 番剧数据（由详情页透传时直接注入）。
+  void setBangumiData(BangumiDetailModel value) {
     try {
-      debugPrint('BangumiVodController-setBangumiData');
-      this.data = data;
-      change(data, status: RxStatus.success());
+      data = value;
+      status = LoadStatus.success;
+      notifyListeners();
     } catch (e) {
       debugPrint(e.toString());
     }
   }
 
-  // 获取番剧数据
-  void getBangumiData() async {
+  /// 获取番剧数据
+  Future<void> getBangumiData() async {
     try {
-      debugPrint('BangumiVodController-getBangumiData');
-      change(null, status: RxStatus.loading());
+      status = LoadStatus.loading;
+      notifyListeners();
       final response = await BangumiApi.getBangumiDetail(id: id);
       if (response.statusCode == 200) {
-        final data = BangumiDetailModel.fromJson(response.data);
-        this.data = data;
-        change(data, status: RxStatus.success());
+        data = BangumiDetailModel.fromJson(response.data);
+        status = LoadStatus.success;
       } else {
         throw Error();
       }
     } catch (e) {
       debugPrint(e.toString());
-      change(null, status: RxStatus.error('error'));
+      status = LoadStatus.error;
+      loadError = true;
     }
+    notifyListeners();
   }
 
-  // 番剧剧集
-  void setBangumiEpisodes(episodes) async {
+  /// 番剧剧集（由详情页透传时直接注入）。
+  void setBangumiEpisodes(List<bangumi_episodes_data_> value) {
     try {
-      debugPrint('BangumiVodController-setBangumiEpisodes');
-      this.episodes = episodes;
+      episodes = value;
       episodeDetail = episodes.firstWhere((e) => e.sort == episode);
+      notifyListeners();
     } catch (e) {
       debugPrint(e.toString());
     }
   }
 
-  // 获取番剧剧集
-  void getBangumiEpisodes() async {
+  /// 获取番剧剧集
+  Future<void> getBangumiEpisodes() async {
     try {
-      debugPrint('BangumiVodController-getBangumiEpisodes');
       final response = await BangumiApi.getBangumiEpisodes(id: id);
       if (response.statusCode == 200) {
-        final data = bangumi_episodes_.fromBuffer(response.data);
-        episodes.addAll(data.data);
+        final result = bangumi_episodes_.fromBuffer(response.data);
+        episodes.addAll(result.data);
         episodeDetail = episodes.firstWhere((e) => e.sort == episode);
-        update();
+        notifyListeners();
       } else {
         throw Error();
       }
@@ -355,22 +401,22 @@ class BangumiVodPageController extends PlayerController
     }
   }
 
-  // 获取弹幕
-  void getDanmaku() async {
+  /// 获取弹幕
+  Future<void> getDanmaku() async {
     int thisEpisode = episode;
     int index = 0;
     int length = 3000;
     bool completed = false;
-    while (!completed && !leave.value && thisEpisode == episode) {
+    while (!completed && !leave && thisEpisode == episode) {
       try {
         debugPrint('BangumiVodController-getDanmaku-$index');
         final response = await BangumiApi.getDanmaku(
             id: id, episode: episode, skip: index * length);
         if (response.statusCode == 200) {
-          final data = danmaku_.fromBuffer(response.data);
-          if (data.data.isNotEmpty) {
-            danmakuList.addAll(data.data);
-            if (data.data.length == length) {
+          final result = danmaku_.fromBuffer(response.data);
+          if (result.data.isNotEmpty) {
+            danmakuList.addAll(result.data);
+            if (result.data.length == length) {
               index += 1;
             } else {
               completed = true;
@@ -389,157 +435,103 @@ class BangumiVodPageController extends PlayerController
     debugPrint('BangumiVodController-getDanmaku-complete');
   }
 
-  // 获取哔哩哔哩弹幕
-  void getBilibiliDanmaku() async {
+  /// 外部弹幕分页拉取的通用流程。
+  ///
+  /// [siteName] 为剧集站点标记；[fetchPage] 返回一页原始数据，
+  /// 返回 `null` 表示出错终止，空列表表示拉取完成。
+  Future<void> _fetchExternalDanmaku(
+    String siteName,
+    String tag,
+    Future<List<dynamic>?> Function(String siteId, int index) fetchPage,
+    void Function(List<dynamic> list) onData,
+  ) async {
     int thisEpisode = episode;
     int index = 1;
     bool completed = false;
-    while (!completed && !leave.value && thisEpisode == episode) {
+    while (!completed && !leave && thisEpisode == episode) {
       await Future.delayed(const Duration(seconds: 1));
-      if (episodes.isNotEmpty) {
-        final currentEpisode = getEpisodeData();
-        if (currentEpisode.sites.isNotEmpty) {
-          bangumi_episodes_sites_ site = currentEpisode.sites.firstWhere(
-              (e) => e.site == 'bili_cid',
-              orElse: () => bangumi_episodes_sites_());
-          if (site.id.isEmpty) {
-            completed = true;
-            return;
-          } else {
-            try {
-              debugPrint('BangumiVodController-getBilibiliDanmaku-$index');
-              final response = await BangumiApi.getBilibiliDanmaku(
-                  type: 1, oid: int.parse(site.id), segmentIndex: index);
-              if (response.statusCode == 200) {
-                final data = bilibili_danmaku_.fromBuffer(response.data);
-                if (data.list.isNotEmpty) {
-                  final list = Utils.splitList(data.list, 500);
-                  for (final item in list) {
-                    final list_ = (await compute(
-                            DanmakuShieldStorage.defaultShieldCheck, item))
-                        .cast<bilibili_danmaku_item_>();
-                    bilibiliDanmakuList.addAll(list_);
-                  }
-                  index += 1;
-                } else {
-                  completed = true;
-                }
-              } else {
-                completed = true;
-                throw Error();
-              }
-            } catch (e) {
-              completed = true;
-              debugPrint(e.toString());
-            }
-          }
+      if (episodes.isEmpty) continue;
+      final currentEpisode = getEpisodeData();
+      if (currentEpisode.sites.isEmpty) continue;
+      final site = currentEpisode.sites.firstWhere(
+        (e) => e.site == siteName,
+        orElse: () => bangumi_episodes_sites_(),
+      );
+      if (site.id.isEmpty) {
+        return;
+      }
+      try {
+        debugPrint('BangumiVodController-$tag-$index');
+        final list = await fetchPage(site.id, index);
+        if (list == null) {
+          return;
         }
+        if (list.isEmpty) {
+          completed = true;
+        } else {
+          for (final item in Utils.splitList(list, 500)) {
+            onData((await compute(
+                    DanmakuShieldService.defaultShieldCheck, item))
+                .cast<dynamic>());
+          }
+          index += 1;
+        }
+      } catch (e) {
+        completed = true;
+        debugPrint(e.toString());
       }
     }
-    debugPrint('BangumiVodController-getBilibiliDanmaku-complete');
+    debugPrint('BangumiVodController-$tag-complete');
   }
 
-  // 获取哔哩哔哩(港澳台)弹幕
-  void getBilibiliHmtDanmaku() async {
-    int thisEpisode = episode;
-    int index = 1;
-    bool completed = false;
-    while (!completed && !leave.value && thisEpisode == episode) {
-      await Future.delayed(const Duration(seconds: 1));
-      if (episodes.isNotEmpty) {
-        final currentEpisode = getEpisodeData();
-        if (currentEpisode.sites.isNotEmpty) {
-          bangumi_episodes_sites_ site = currentEpisode.sites.firstWhere(
-              (e) => e.site == 'bili_hmt_cid',
-              orElse: () => bangumi_episodes_sites_());
-          if (site.id.isEmpty) {
-            completed = true;
-            return;
-          } else {
-            try {
-              debugPrint('BangumiVodController-getBilibiliHmtDanmaku-$index');
-              final response = await BangumiApi.getBilibiliDanmaku(
-                  type: 1, oid: int.parse(site.id), segmentIndex: index);
-              if (response.statusCode == 200) {
-                final data = bilibili_danmaku_.fromBuffer(response.data);
-                if (data.list.isNotEmpty) {
-                  final list = Utils.splitList(data.list, 500);
-                  for (final item in list) {
-                    final list_ = (await compute(
-                            DanmakuShieldStorage.defaultShieldCheck, item))
-                        .cast<bilibili_danmaku_item_>();
-                    bilibiliHmtDanmakuList.addAll(list_);
-                  }
-                  index += 1;
-                } else {
-                  completed = true;
-                }
-              } else {
-                completed = true;
-                throw Error();
-              }
-            } catch (e) {
-              completed = true;
-              debugPrint(e.toString());
-            }
+  /// 获取哔哩哔哩弹幕
+  Future<void> getBilibiliDanmaku() => _fetchExternalDanmaku(
+        'bili_cid',
+        'getBilibiliDanmaku',
+        (siteId, index) async {
+          final response = await BangumiApi.getBilibiliDanmaku(
+              type: 1, oid: int.parse(siteId), segmentIndex: index);
+          if (response.statusCode == 200) {
+            return bilibili_danmaku_.fromBuffer(response.data).list;
           }
-        }
-      }
-    }
-    debugPrint('BangumiVodController-getBilibiliHmtDanmaku-complete');
-  }
+          return null;
+        },
+        (list) => bilibiliDanmakuList
+            .addAll(list.cast<bilibili_danmaku_item_>()),
+      );
 
-  // 获取腾讯视频弹幕
-  void getQQDanmaku() async {
-    int thisEpisode = episode;
-    int index = 1;
-    bool completed = false;
-    while (!completed && !leave.value && thisEpisode == episode) {
-      await Future.delayed(const Duration(seconds: 1));
-      if (episodes.isNotEmpty) {
-        final currentEpisode = getEpisodeData();
-        if (currentEpisode.sites.isNotEmpty) {
-          bangumi_episodes_sites_ site = currentEpisode.sites.firstWhere(
-              (e) => e.site == 'qq',
-              orElse: () => bangumi_episodes_sites_());
-          if (site.id.isEmpty) {
-            completed = true;
-            return;
-          } else {
-            try {
-              debugPrint('BangumiVodController-getQQDanmaku-$index');
-              final response =
-                  await BangumiApi.getQQDanmaku(id: site.id, page: index);
-              if (response.statusCode == 200) {
-                final data = QqVideoModel.fromJson(response.data).barrageList;
-                if (data!.isNotEmpty) {
-                  final list = Utils.splitList(data, 500);
-                  for (final item in list) {
-                    final list_ = (await compute(
-                            DanmakuShieldStorage.defaultShieldCheck, item))
-                        .cast<BarrageList>();
-                    qqDanmakuList.addAll(list_);
-                  }
-                  index += 1;
-                } else {
-                  completed = true;
-                }
-              } else {
-                completed = true;
-                throw Error();
-              }
-            } catch (e) {
-              completed = true;
-              debugPrint(e.toString());
-            }
+  /// 获取哔哩哔哩(港澳台)弹幕
+  Future<void> getBilibiliHmtDanmaku() => _fetchExternalDanmaku(
+        'bili_hmt_cid',
+        'getBilibiliHmtDanmaku',
+        (siteId, index) async {
+          final response = await BangumiApi.getBilibiliDanmaku(
+              type: 1, oid: int.parse(siteId), segmentIndex: index);
+          if (response.statusCode == 200) {
+            return bilibili_danmaku_.fromBuffer(response.data).list;
           }
-        }
-      }
-    }
-    debugPrint('BangumiVodController-getQQDanmaku-complete');
-  }
+          return null;
+        },
+        (list) => bilibiliHmtDanmakuList
+            .addAll(list.cast<bilibili_danmaku_item_>()),
+      );
 
-  // URL解密
+  /// 获取腾讯视频弹幕
+  Future<void> getQQDanmaku() => _fetchExternalDanmaku(
+        'qq',
+        'getQQDanmaku',
+        (siteId, index) async {
+          final response =
+              await BangumiApi.getQQDanmaku(id: siteId, page: index);
+          if (response.statusCode == 200) {
+            return QqVideoModel.fromJson(response.data).barrageList ?? [];
+          }
+          return null;
+        },
+        (list) => qqDanmakuList.addAll(list.cast<BarrageList>()),
+      );
+
+  /// URL解密
   String urlDecode(str) {
     try {
       return utf8.decode(base64
@@ -550,16 +542,16 @@ class BangumiVodPageController extends PlayerController
     }
   }
 
-  // 获取视频链接
-  void getPlayUrl() async {
-    playUrls.clear();
+  /// 获取视频链接
+  Future<void> getPlayUrl() async {
+    playUrls.value = [];
     currentLineInfo.value = '获取中...';
     currentLineIndex = -1;
     final response =
         await BangumiApi.getBangumiEpisodeVod(id: id, episode: episode);
     if (response.statusCode == 200) {
-      vod_ data = vod_.fromBuffer(response.data.cast<int>());
-      playUrls.value = data.data;
+      vod_ result = vod_.fromBuffer(response.data.cast<int>());
+      playUrls.value = result.data;
       currentLineIndex = 0;
       currentLineInfo.value = '线路${currentLineIndex + 1}';
       setPlayer();
@@ -568,56 +560,49 @@ class BangumiVodPageController extends PlayerController
       SmartDialog.showToast('无法读取播放地址');
       return;
     }
-    if (playUrls.isEmpty) {
+    if (playUrls.value.isEmpty) {
       currentLineInfo.value = '暂无资源';
       SmartDialog.showToast('暂无资源');
     }
   }
 
-  // 设置视频链接
-  void setPlayer() async {
-    if (playUrls.isNotEmpty) {
-      lastPosition(PlayHistoryStorage.getLastPosition(id, episode));
+  /// 设置视频链接
+  Future<void> setPlayer() async {
+    if (playUrls.value.isNotEmpty) {
+      lastPosition.value =
+          PlayHistoryService.instance.getLastPosition(id, episode);
       currentLineInfo.value = '线路${currentLineIndex + 1}';
       Map<String, String> headers = {};
       await player.open(
         Media(
-          urlDecode(playUrls[currentLineIndex].url),
+          urlDecode(playUrls.value[currentLineIndex].url),
           httpHeaders: headers,
         ),
       );
-
-      // final history = box.read(id.toString());
-      // if (history != null) {
-      //   final thisEpisode = history['episodes'].firstWhere(
-      //       (e) => e['episode'].toString() == episode.toString(),
-      //       orElse: () => {});
-      //   lastPosition(int.parse(thisEpisode['position'].toString()));
-      // }
-
-      Log.d('播放链接\r\n：${urlDecode(playUrls[currentLineIndex].url)}');
+      Log.d(
+          '播放链接\r\n：${urlDecode(playUrls.value[currentLineIndex].url)}');
     }
   }
 
-  // 获取集数据
+  /// 获取集数据
   bangumi_episodes_data_ getEpisodeData() {
     return episodes.firstWhere((e) => e.sort == episode,
         orElse: () => bangumi_episodes_data_());
   }
 
-  // 切换线路
+  /// 切换线路
   void changePlayLine(int index) {
     currentLineIndex = index;
     setPlayer();
   }
 
-  // 刷新
-  void reload() async {
+  /// 刷新
+  void reload() {
     getPlayUrl();
   }
 
-  // 获取数据
-  void get() async {
+  /// 获取当前集的全部数据（播放地址 + 各弹幕源）。
+  void get() {
     getPlayUrl();
     danmakuList.clear();
     bilibiliDanmakuList.clear();
@@ -629,12 +614,13 @@ class BangumiVodPageController extends PlayerController
     getQQDanmaku();
   }
 
-  // 跳转到指定集数位置
+  /// 滚动到当前集的位置
   void scrollToIndex() {
     WidgetsBinding.instance.addPostFrameCallback((callback) {
       try {
         final index = episodes.indexWhere((e) => e.sort == episode);
-        if (playListScrollController.position.hasPixels) {
+        if (playListScrollController.hasClients &&
+            playListScrollController.position.hasPixels) {
           playListScrollController.animateTo(index * 150,
               duration: const Duration(milliseconds: 100),
               curve: Curves.easeIn);
@@ -645,7 +631,7 @@ class BangumiVodPageController extends PlayerController
     });
   }
 
-  /// 底部打开播放器设置
+  /// 底部打开弹幕设置
   void showDanmakuSettingsSheet() {
     Utils.showBottomSheet(
       title: '弹幕设置',
@@ -656,7 +642,7 @@ class BangumiVodPageController extends PlayerController
             playerController: this,
             danmakuController: danmakuController,
             onTapDanmakuShield: () {
-              Get.back();
+              appNavigator?.pop();
               DanmakuShieldView.showDanmakuShieldBottomSheet();
             },
           ),
@@ -665,84 +651,9 @@ class BangumiVodPageController extends PlayerController
     );
   }
 
-  void showDanmakuShield() {
-    TextEditingController keywordController = TextEditingController();
-
-    void addKeyword() {
-      if (keywordController.text.isEmpty) {
-        SmartDialog.showToast('请输入关键词');
-        return;
-      }
-
-      DanmakuShieldStorage.addShieldList(keywordController.text.trim());
-      keywordController.text = '';
-    }
-
-    Utils.showBottomSheet(
-      title: '关键词屏蔽',
-      child: ListView(
-        padding: AppStyle.edgeInsetsA12,
-        children: [
-          TextField(
-            controller: keywordController,
-            decoration: InputDecoration(
-              contentPadding: AppStyle.edgeInsetsH12,
-              border: const OutlineInputBorder(),
-              hintText: '请输入关键词',
-              suffixIcon: TextButton.icon(
-                onPressed: addKeyword,
-                icon: const Icon(Icons.add),
-                label: const Text('添加'),
-              ),
-            ),
-            onSubmitted: (e) {
-              addKeyword();
-            },
-          ),
-          AppStyle.vGap12,
-          Obx(
-            () => Text(
-              '已添加${DanmakuShieldStorage.shieldList.length}个关键词（点击移除）',
-              style: Get.textTheme.titleSmall,
-            ),
-          ),
-          AppStyle.vGap12,
-          Obx(
-            () => Wrap(
-              runSpacing: 12,
-              spacing: 12,
-              children: DanmakuShieldStorage.shieldList
-                  .map(
-                    (item) => InkWell(
-                      borderRadius: AppStyle.radius24,
-                      onTap: () {
-                        DanmakuShieldStorage.removeShieldList(item);
-                      },
-                      child: Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey),
-                          borderRadius: AppStyle.radius24,
-                        ),
-                        padding: AppStyle.edgeInsetsH12.copyWith(
-                          top: 4,
-                          bottom: 4,
-                        ),
-                        child: Text(
-                          item,
-                          style: Get.textTheme.bodyMedium,
-                        ),
-                      ),
-                    ),
-                  )
-                  .toList(),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
+  /// 底部打开播放设置
   void showPlayerSettingsSheet() {
+    final textTheme = Theme.of(appContext).textTheme;
     Utils.showBottomSheet(
       scrollControlDisabledMaxHeightRatio: 0.7,
       title: '播放设置',
@@ -755,62 +666,22 @@ class BangumiVodPageController extends PlayerController
               padding: AppStyle.edgeInsetsA12.copyWith(top: 0),
               child: Text(
                 '画面尺寸',
-                style: Get.textTheme.titleSmall,
+                style: textTheme.titleSmall,
               ),
             ),
             SettingsCard(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Obx(
-                    () => SettingsSwitch(
-                      title: '适应',
-                      value: scaleMode.value == 0,
-                      onChanged: (e) {
-                        updateScaleMode(0);
-                      },
-                    ),
-                  ),
+                  _scaleModeItem('适应', 0),
                   AppStyle.divider,
-                  Obx(
-                    () => SettingsSwitch(
-                      title: '拉伸',
-                      value: scaleMode.value == 1,
-                      onChanged: (e) {
-                        updateScaleMode(1);
-                      },
-                    ),
-                  ),
+                  _scaleModeItem('拉伸', 1),
                   AppStyle.divider,
-                  Obx(
-                    () => SettingsSwitch(
-                      title: '铺满',
-                      value: scaleMode.value == 2,
-                      onChanged: (e) {
-                        updateScaleMode(2);
-                      },
-                    ),
-                  ),
+                  _scaleModeItem('铺满', 2),
                   AppStyle.divider,
-                  Obx(
-                    () => SettingsSwitch(
-                      title: '16:9',
-                      value: scaleMode.value == 3,
-                      onChanged: (e) {
-                        updateScaleMode(3);
-                      },
-                    ),
-                  ),
+                  _scaleModeItem('16:9', 3),
                   AppStyle.divider,
-                  Obx(
-                    () => SettingsSwitch(
-                      title: '4:3',
-                      value: scaleMode.value == 4,
-                      onChanged: (e) {
-                        updateScaleMode(4);
-                      },
-                    ),
-                  ),
+                  _scaleModeItem('4:3', 4),
                 ],
               ),
             ),
@@ -818,28 +689,27 @@ class BangumiVodPageController extends PlayerController
               padding: AppStyle.edgeInsetsA12.copyWith(top: 12),
               child: Text(
                 '播放速度',
-                style: Get.textTheme.titleSmall,
+                style: textTheme.titleSmall,
               ),
             ),
             SettingsCard(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: speedsList.map((rate) {
-                  return Obx(
-                    () => SizedBox(
-                      child: Column(
-                        children: [
-                          SettingsSwitch(
-                            title: '${rate}X',
-                            value: playerSpeed.value == rate,
-                            onChanged: (e) {
-                              setPlaybackSpeed(rate);
-                            },
-                          ),
-                          AppStyle.divider,
-                        ],
+                  return Column(
+                    children: [
+                      ValueListenableBuilder<double>(
+                        valueListenable: playerSpeed,
+                        builder: (context, value, _) => SettingsSwitch(
+                          title: '${rate}X',
+                          value: value == rate,
+                          onChanged: (e) {
+                            setPlaybackSpeed(rate);
+                          },
+                        ),
                       ),
-                    ),
+                      AppStyle.divider,
+                    ],
                   );
                 }).toList(),
               ),
@@ -850,6 +720,20 @@ class BangumiVodPageController extends PlayerController
     );
   }
 
+  Widget _scaleModeItem(String title, int mode) {
+    return ValueListenableBuilder<int>(
+      valueListenable: scaleMode,
+      builder: (context, value, _) => SettingsSwitch(
+        title: title,
+        value: value == mode,
+        onChanged: (e) {
+          updateScaleMode(mode);
+        },
+      ),
+    );
+  }
+
+  /// 右侧选集弹窗（全屏/横屏时使用）
   void showEpisodesSheet() {
     Utils.showRightDialog(
       title: '选集',
@@ -857,7 +741,8 @@ class BangumiVodPageController extends PlayerController
       useSystem: true,
       child: Builder(builder: (builder) {
         WidgetsBinding.instance.addPostFrameCallback((callback) {
-          if (playListScrollController2.position.hasPixels) {
+          if (playListScrollController2.hasClients &&
+              playListScrollController2.position.hasPixels) {
             final index = episodes.indexWhere((e) => e.sort == episode);
             playListScrollController2.animateTo(index * 100,
                 duration: const Duration(milliseconds: 100),
@@ -873,63 +758,55 @@ class BangumiVodPageController extends PlayerController
                   if (episode == item.sort) {
                     return;
                   }
-                  rxEpisode(item.sort);
-                  debugPrint('切换到第$episode集');
-                  player.stop();
-                  danmakuController?.clear();
-                  get();
+                  setEpisode(item.sort);
                   Utils.hideRightDialog();
                 },
-                child: Obx(() {
-                  return Container(
-                    height: 100,
-                    decoration: BoxDecoration(
-                        color: episode == item.sort
-                            ? Colors.grey.withOpacity(0.2)
-                            : Colors.transparent),
-                    padding: const EdgeInsets.all(10),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          constraints: const BoxConstraints(maxWidth: 150),
-                          decoration: BoxDecoration(
+                child: ValueListenableBuilder<int>(
+                  valueListenable: episodeNotifier,
+                  builder: (context, current, _) {
+                    return Container(
+                      height: 100,
+                      decoration: BoxDecoration(
+                          color: current == item.sort
+                              ? Colors.grey.withOpacity(0.2)
+                              : Colors.transparent),
+                      padding: const EdgeInsets.all(10),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            constraints: const BoxConstraints(maxWidth: 150),
+                            decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(7),
+                                color: Colors.grey.withOpacity(0.1)),
+                            child: ClipRRect(
                               borderRadius: BorderRadius.circular(7),
-                              color: Colors.grey.withOpacity(0.1)),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(7),
-                            child: Stack(
-                              alignment: AlignmentDirectional.bottomCenter,
-                              // fit: StackFit.expand,
-                              children: [
-                                Container(
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(7),
+                              child: Stack(
+                                alignment: AlignmentDirectional.bottomCenter,
+                                children: [
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(7),
+                                    ),
+                                    child: item.image.isNotEmpty
+                                        ? Image.network(
+                                            item.image,
+                                            width: double.infinity,
+                                            height: double.infinity,
+                                            fit: BoxFit.cover,
+                                            errorBuilder:
+                                                (context, error, stackTrace) {
+                                              return noImage;
+                                            },
+                                          )
+                                        : noImage,
                                   ),
-                                  child: item.image.isNotEmpty
-                                      ? Image.network(
-                                          item.image,
-                                          width: double.infinity,
-                                          height: double.infinity,
-                                          fit: BoxFit.cover,
-                                          errorBuilder:
-                                              (context, error, stackTrace) {
-                                            return noImage;
-                                          },
-                                        )
-                                      : noImage,
-                                ),
-                                Positioned(
-                                  bottom: 5,
-                                  right: 0,
-                                  child: Row(
-                                    children: [
-                                      Visibility(
-                                        visible: true,
-                                        maintainSize: false,
-                                        maintainSemantics: false,
-                                        maintainAnimation: false,
-                                        child: Container(
+                                  Positioned(
+                                    bottom: 5,
+                                    right: 0,
+                                    child: Row(
+                                      children: [
+                                        Container(
                                           padding: const EdgeInsets.only(
                                               top: 1,
                                               left: 5,
@@ -949,83 +826,83 @@ class BangumiVodPageController extends PlayerController
                                                 fontSize: 12),
                                           ),
                                         ),
-                                      ),
-                                      Visibility(
-                                        visible: item.duration > 0,
-                                        maintainSize: false,
-                                        maintainSemantics: false,
-                                        maintainAnimation: false,
-                                        child: Container(
-                                          padding: const EdgeInsets.only(
-                                              top: 1,
-                                              left: 5,
-                                              right: 5,
-                                              bottom: 3),
-                                          margin:
-                                              const EdgeInsets.only(right: 5),
-                                          decoration: BoxDecoration(
-                                              borderRadius:
-                                                  BorderRadius.circular(5),
-                                              color:
-                                                  Colors.black.withAlpha(120)),
-                                          child: Text(
-                                            Duration(seconds: item.duration)
-                                                .toString()
-                                                .split('.')
-                                                .first,
-                                            style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 12),
+                                        Visibility(
+                                          visible: item.duration > 0,
+                                          maintainSize: false,
+                                          maintainSemantics: false,
+                                          maintainAnimation: false,
+                                          child: Container(
+                                            padding: const EdgeInsets.only(
+                                                top: 1,
+                                                left: 5,
+                                                right: 5,
+                                                bottom: 3),
+                                            margin: const EdgeInsets.only(
+                                                right: 5),
+                                            decoration: BoxDecoration(
+                                                borderRadius:
+                                                    BorderRadius.circular(5),
+                                                color: Colors.black
+                                                    .withAlpha(120)),
+                                            child: Text(
+                                              Duration(seconds: item.duration)
+                                                  .toString()
+                                                  .split('.')
+                                                  .first,
+                                              style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 12),
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(
-                          width: 10,
-                        ),
-                        Expanded(
-                            child: Column(
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '第${item.sort}集 ${item.title}',
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 15),
-                            ),
-                            Opacity(
-                              opacity: 0.7,
-                              child: Text(
-                                Time.dateTimeFormat(item.airdate.toInt()),
+                          const SizedBox(
+                            width: 10,
+                          ),
+                          Expanded(
+                              child: Column(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '第${item.sort}集 ${item.title}',
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 11,
+                                style: const TextStyle(fontSize: 15),
+                              ),
+                              Opacity(
+                                opacity: 0.7,
+                                child: Text(
+                                  Time.dateTimeFormat(item.airdate.toInt()),
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                  ),
                                 ),
                               ),
-                            ),
-                            Opacity(
-                              opacity: 0.7,
-                              child: Text(
-                                item.overview,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 11,
+                              Opacity(
+                                opacity: 0.7,
+                                child: Text(
+                                  item.overview,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                  ),
                                 ),
-                              ),
-                            )
-                          ],
-                        ))
-                      ],
-                    ),
-                  );
-                }),
+                              )
+                            ],
+                          ))
+                        ],
+                      ),
+                    );
+                  },
+                ),
               ),
             );
           }).toList(),
@@ -1034,32 +911,35 @@ class BangumiVodPageController extends PlayerController
     );
   }
 
+  /// 底部线路弹窗（竖屏时使用）
   void showPlayUrlsSheet() {
     Utils.showBottomSheet(
       title: '切换线路',
-      child: ListView.builder(
-        itemCount: playUrls.length,
-        itemBuilder: (_, i) {
-          return RadioListTile(
-            value: i,
-            groupValue: currentLineIndex,
-            title: Text('线路${i + 1}'),
-            subtitle: Text(urlDecode(playUrls[i].url)),
-            secondary: Text(
-              playUrls[i].caption,
-            ),
-            onChanged: (e) {
-              Get.back();
-              //currentLineIndex = i;
-              //setPlayer();
-              changePlayLine(i);
-            },
-          );
-        },
+      child: ValueListenableBuilder<List<vod_item_>>(
+        valueListenable: playUrls,
+        builder: (context, urls, _) => ListView.builder(
+          itemCount: urls.length,
+          itemBuilder: (_, i) {
+            return RadioListTile(
+              value: i,
+              groupValue: currentLineIndex,
+              title: Text('线路${i + 1}'),
+              subtitle: Text(urlDecode(urls[i].url)),
+              secondary: Text(
+                urls[i].caption,
+              ),
+              onChanged: (e) {
+                appNavigator?.pop();
+                changePlayLine(i);
+              },
+            );
+          },
+        ),
       ),
     );
   }
 
+  /// 音量悬浮滑块
   void showVolumeSlider(BuildContext targetContext) {
     SmartDialog.showAttach(
       targetContext: targetContext,
@@ -1075,16 +955,18 @@ class BangumiVodPageController extends PlayerController
           padding: AppStyle.edgeInsetsA4,
           child: SizedBox(
             width: 200,
-            child: Obx(() => Slider(
-                  min: 0,
-                  max: 100,
-                  value: playerVolume.value,
-                  onChanged: (newValue) {
-                    player.setVolume(newValue);
-                    playerVolume(newValue);
-                    // AppSettingsController.instance.setPlayerVolume(newValue);
-                  },
-                )),
+            child: ValueListenableBuilder<double>(
+              valueListenable: playerVolume,
+              builder: (context, value, _) => Slider(
+                min: 0,
+                max: 100,
+                value: value,
+                onChanged: (newValue) {
+                  player.setVolume(newValue);
+                  playerVolume.value = newValue;
+                },
+              ),
+            ),
           ),
         );
       },
@@ -1092,10 +974,16 @@ class BangumiVodPageController extends PlayerController
   }
 
   @override
-  void onClose() {
-    WidgetsBinding.instance.removeObserver(this);
+  void dispose() {
+    for (final subscription in _playerSubscriptions) {
+      subscription.cancel();
+    }
+    _playerSubscriptions.clear();
+    detach();
+    playListScrollController.dispose();
+    playListScrollController2.dispose();
     danmakuController = null;
-    leave(true);
-    super.onClose();
+    leave = true;
+    super.dispose();
   }
 }

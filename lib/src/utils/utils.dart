@@ -5,17 +5,18 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
-import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 import 'package:xs/src/apis/info.dart';
+import 'package:xs/src/app/navigator_key.dart';
+import 'package:xs/src/config.dart';
 import 'package:xs/src/utils/app_style.dart';
 import 'package:xs/src/utils/log.dart';
 
 class Utils {
-  static late PackageInfo packageInfo;
+  static PackageInfo get packageInfo => AppConfig.packageInfo;
   static DateFormat dateFormat = DateFormat('MM-dd HH:mm');
   static DateFormat dateFormatWithYear = DateFormat('yyyy-MM-dd HH:mm');
   static DateFormat timeFormat = DateFormat('HH:mm:ss');
@@ -53,8 +54,9 @@ class Utils {
     bool selectable = false,
     List<Widget>? actions,
   }) async {
-    var result = await Get.dialog(
-      AlertDialog(
+    var result = await showDialog<bool>(
+      context: appContext,
+      builder: (context) => AlertDialog(
         title: Text(title),
         content: Container(
           constraints: const BoxConstraints(
@@ -70,11 +72,11 @@ class Utils {
         actions: [
           ...?actions,
           TextButton(
-            onPressed: (() => Get.back(result: false)),
+            onPressed: () => Navigator.of(context).pop(false),
             child: Text(cancel.isEmpty ? '取消' : cancel),
           ),
           TextButton(
-            onPressed: (() => Get.back(result: true)),
+            onPressed: () => Navigator.of(context).pop(true),
             child: Text(confirm.isEmpty ? '确定' : confirm),
           ),
         ],
@@ -89,8 +91,9 @@ class Utils {
   /// - `confirm` 确认按钮内容，留空为确定
   static Future<bool> showMessageDialog(String content,
       {String title = '', String confirm = '', bool selectable = false}) async {
-    var result = await Get.dialog(
-      AlertDialog(
+    var result = await showDialog<bool>(
+      context: appContext,
+      builder: (context) => AlertDialog(
         title: Text(title),
         content: Padding(
           padding: AppStyle.edgeInsetsV12,
@@ -98,7 +101,7 @@ class Utils {
         ),
         actions: [
           TextButton(
-            onPressed: (() => Get.back(result: true)),
+            onPressed: () => Navigator.of(context).pop(true),
             child: Text(confirm.isEmpty ? '确定' : confirm),
           ),
         ],
@@ -133,7 +136,7 @@ class Utils {
         width: width + MediaQuery.of(context).padding.right,
         padding: EdgeInsets.only(right: MediaQuery.of(context).padding.right),
         decoration: BoxDecoration(
-          color: Get.theme.cardColor,
+          color: Theme.of(context).cardColor,
           borderRadius: const BorderRadius.only(
             topLeft: Radius.circular(4),
             bottomLeft: Radius.circular(4),
@@ -159,7 +162,7 @@ class Utils {
                   ),
                   title: Text(
                     title,
-                    style: Get.textTheme.titleMedium,
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
                 Divider(
@@ -188,7 +191,7 @@ class Utils {
       double maxHeight = double.infinity,
       double scrollControlDisabledMaxHeightRatio = 0.5}) {
     showModalBottomSheet(
-      context: Get.context!,
+      context: appContext,
       constraints: BoxConstraints(maxWidth: maxWidth, maxHeight: maxHeight),
       scrollControlDisabledMaxHeightRatio: scrollControlDisabledMaxHeightRatio,
       shape: const RoundedRectangleBorder(
@@ -197,7 +200,7 @@ class Utils {
           topRight: Radius.circular(12),
         ),
       ),
-      builder: (_) => Column(
+      builder: (context) => Column(
         children: [
           ListTile(
             contentPadding: const EdgeInsets.only(
@@ -205,7 +208,7 @@ class Utils {
             ),
             title: Text(title),
             trailing: IconButton(
-              onPressed: Get.back,
+              onPressed: () => Navigator.of(context).pop(),
               icon: const Icon(Icons.close),
             ),
           ),
@@ -229,8 +232,9 @@ class Utils {
       String cancel = ''}) async {
     final TextEditingController textEditingController =
         TextEditingController(text: content);
-    var result = await Get.dialog(
-      AlertDialog(
+    var result = await showDialog<String>(
+      context: appContext,
+      builder: (context) => AlertDialog(
         title: Text(title),
         content: Padding(
           padding: AppStyle.edgeInsetsT12,
@@ -242,27 +246,22 @@ class Utils {
               contentPadding: AppStyle.edgeInsetsA12,
               hintText: hintText ?? title,
             ),
-            // style: TextStyle(
-            //     height: 1.0,
-            //     color: Get.isDarkMode ? Colors.white : Colors.black),
             autofocus: true,
           ),
         ),
         actions: [
           TextButton(
-            onPressed: Get.back,
+            onPressed: () => Navigator.of(context).pop(),
             child: const Text('取消'),
           ),
           TextButton(
             onPressed: () {
-              Get.back(result: textEditingController.text);
+              Navigator.of(context).pop(textEditingController.text);
             },
             child: const Text('确定'),
           ),
         ],
       ),
-      // barrierColor:
-      //     Get.isDarkMode ? Colors.grey.withOpacity(.3) : Colors.black38,
     );
     return result;
   }
@@ -272,8 +271,9 @@ class Utils {
     T value, {
     String title = '',
   }) async {
-    var result = await Get.dialog(
-      SimpleDialog(
+    var result = await showDialog<T>(
+      context: appContext,
+      builder: (context) => SimpleDialog(
         title: Text(title),
         children: contents
             .map(
@@ -282,7 +282,7 @@ class Utils {
                 value: e,
                 groupValue: value,
                 onChanged: (e) {
-                  Get.back(result: e);
+                  Navigator.of(context).pop(e);
                 },
               ),
             )
@@ -312,17 +312,18 @@ class Utils {
     T value, {
     String title = '',
   }) async {
-    var result = await Get.dialog(
-      SimpleDialog(
+    var result = await showDialog<T>(
+      context: appContext,
+      builder: (context) => SimpleDialog(
         title: Text(title),
         children: contents.keys
             .map(
               (e) => RadioListTile<T>(
-                title: Text((contents[e] ?? '-').tr),
+                title: Text(contents[e] ?? '-'),
                 value: e,
                 groupValue: value,
                 onChanged: (e) {
-                  Get.back(result: e);
+                  Navigator.of(context).pop(e);
                 },
               ),
             )
@@ -337,7 +338,6 @@ class Utils {
       final versionInfo = await InfoApi.checkUpdate();
       final currentVersion = packageInfo.version.split('.');
       final latestVersion = versionInfo.data['name'].split('.');
-      // final latestVersion = '1.0.1'.split('.');
 
       final currentMajorNum = int.parse(currentVersion[0]);
       final currentMinorNum = int.parse(currentVersion[1]);
@@ -353,19 +353,11 @@ class Utils {
       final patchBool = latestMajorNum == currentMajorNum &&
           latestMinorNum == currentMinorNum &&
           latestPatchNum > currentPatchNum;
-      // if (majorBool) {
-      //   debugPrint('主版本强制更新');
-      // }
-      // if (minorBool) {
-      //   debugPrint('子版本强制更新');
-      // }
-      // if (patchBool) {
-      //   debugPrint('补丁版本不强制更新');
-      // }
       if (majorBool || minorBool || patchBool) {
-        Get.dialog(
+        showDialog(
+          context: appContext,
           barrierDismissible: false,
-          AlertDialog(
+          builder: (context) => AlertDialog(
             title: Text(
               '发现新版本 ${versionInfo.data['name']}',
               textAlign: TextAlign.center,
@@ -386,7 +378,7 @@ class Utils {
                       Expanded(
                         child: TextButton(
                           onPressed: () {
-                            Get.back();
+                            Navigator.of(context).pop();
                           },
                           child: const Text('取消'),
                         ),

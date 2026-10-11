@@ -1,54 +1,59 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import 'package:xs/src/widgets/danmaku_shield/storage.dart';
+import 'package:xs/src/services/danmaku_shield_service.dart';
 import 'package:xs/src/utils/app_style.dart';
 import 'package:xs/src/utils/utils.dart';
 
-class DanmakuShieldView {
-  static Widget builddanmakuShieldView() {
+/// 弹幕屏蔽词管理面板。
+///
+/// 替代原 `DanmakuShieldView`，数据由
+/// [DanmakuShieldService] 统一维护。
+class DanmakuShieldView extends StatelessWidget {
+  const DanmakuShieldView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final shield = DanmakuShieldService.instance;
     return ListView(
       padding: AppStyle.edgeInsetsA12,
       children: [
         TextField(
-          controller: DanmakuShieldStorage.textEditingController,
+          controller: shield.textEditingController,
           decoration: InputDecoration(
             contentPadding: AppStyle.edgeInsetsH12,
             border: const OutlineInputBorder(),
             hintText: '请输入关键词或正则表达式',
             suffixIcon: TextButton.icon(
-              onPressed: DanmakuShieldStorage.add,
+              onPressed: shield.add,
               icon: const Icon(Icons.add),
               label: const Text('添加'),
             ),
           ),
-          onSubmitted: (e) {
-            DanmakuShieldStorage.add();
-          },
+          onSubmitted: (_) => shield.add(),
         ),
         AppStyle.vGap4,
         Text(
           '以"/"开头和结尾将视作正则表达式, 如"/\\d+/"表示屏蔽所有数字',
-          style: Get.textTheme.bodySmall,
+          style: Theme.of(context).textTheme.bodySmall,
         ),
         AppStyle.vGap12,
-        Obx(
-          () => Text(
-            '已添加${DanmakuShieldStorage.shieldList.length}个关键词（点击移除）',
-            style: Get.textTheme.titleSmall,
+        ValueListenableBuilder<Set<String>>(
+          valueListenable: shield.shieldList,
+          builder: (context, shieldList, _) => Text(
+            '已添加${shieldList.length}个关键词（点击移除）',
+            style: Theme.of(context).textTheme.titleSmall,
           ),
         ),
         AppStyle.vGap12,
-        Obx(
-          () => Wrap(
+        ValueListenableBuilder<Set<String>>(
+          valueListenable: shield.shieldList,
+          builder: (context, shieldList, _) => Wrap(
             runSpacing: 12,
             spacing: 12,
-            children: DanmakuShieldStorage.shieldList
+            children: shieldList
                 .map(
                   (item) => InkWell(
                     borderRadius: AppStyle.radius24,
-                    onTap: () {
-                      DanmakuShieldStorage.remove(item);
-                    },
+                    onTap: () => shield.remove(item),
                     child: Container(
                       decoration: BoxDecoration(
                         border: Border.all(color: Colors.grey),
@@ -60,7 +65,7 @@ class DanmakuShieldView {
                       ),
                       child: Text(
                         item,
-                        style: Get.textTheme.bodyMedium,
+                        style: Theme.of(context).textTheme.bodyMedium,
                       ),
                     ),
                   ),
@@ -75,7 +80,7 @@ class DanmakuShieldView {
   static void showDanmakuShieldBottomSheet() {
     Utils.showBottomSheet(
       title: '关键词屏蔽',
-      child: builddanmakuShieldView(),
+      child: const DanmakuShieldView(),
     );
   }
 
@@ -84,7 +89,7 @@ class DanmakuShieldView {
       title: '关键词屏蔽',
       width: 400,
       useSystem: true,
-      child: builddanmakuShieldView(),
+      child: const DanmakuShieldView(),
     );
   }
 }

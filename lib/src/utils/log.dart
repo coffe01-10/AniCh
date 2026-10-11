@@ -3,12 +3,15 @@ import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:logger/logger.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:xs/src/utils/utils.dart';
 
+/// 应用日志。
+///
+/// 控制台输出（logger）+ 调试页可见的内存日志（[debugLogs]）
+/// + 可选的文件写入（[LogFileWriter]）。
 class Log {
   static LogFileWriter? logFileWriter;
   static void initWriter() {
@@ -25,7 +28,9 @@ class Log {
         ?.write('[${level.name.toUpperCase()}] $_currentTime：$content');
   }
 
-  static RxList<DebugLogModel> debugLogs = <DebugLogModel>[].obs;
+  /// 调试日志列表（新日志在头部插入）。
+  static final ValueNotifier<List<DebugLogModel>> debugLogs =
+      ValueNotifier<List<DebugLogModel>>([]);
 
   static void addDebugLog(String content, Color? color) {
     if (kReleaseMode) {
@@ -35,7 +40,10 @@ class Log {
       content = content.split('\n').join('\n💡 ');
     }
     try {
-      debugLogs.insert(0, DebugLogModel(DateTime.now(), content, color: color));
+      debugLogs.value = [
+        DebugLogModel(DateTime.now(), content, color: color),
+        ...debugLogs.value,
+      ];
     } catch (e) {
       if (kDebugMode) {
         print(e);
@@ -93,7 +101,6 @@ class Log {
     if (writeFile) {
       writeLog(obj, Level.info);
     }
-    //logger.e(obj.toString(), obj, obj?.stackTrace);
     if (kDebugMode) {
       print(obj);
     }
@@ -158,5 +165,5 @@ class DebugLogModel {
   final String content;
   final DateTime datetime;
   final Color? color;
-  DebugLogModel(this.datetime, this.content, {this.color});
+  const DebugLogModel(this.datetime, this.content, {this.color});
 }

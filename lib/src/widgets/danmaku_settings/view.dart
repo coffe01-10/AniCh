@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import 'package:xs/src/services/danmaku_settings_service.dart';
 import 'package:xs/src/utils/app_style.dart';
-import 'package:xs/src/widgets/danmaku_settings/storage.dart';
 import 'package:xs/src/widgets/danmaku_shield/view.dart';
 import 'package:xs/src/widgets/ns_danmaku/danmaku_controller.dart';
 import 'package:xs/src/widgets/ns_danmaku/models/danmaku_option.dart';
@@ -11,6 +10,7 @@ import 'package:xs/src/widgets/settings/settings_card.dart';
 import 'package:xs/src/widgets/settings/settings_number.dart';
 import 'package:xs/src/widgets/settings/settings_switch.dart';
 
+/// 弹幕设置页（路由 `/danmaku_settings`）。
 class DanmakuSettingsPage extends StatelessWidget {
   const DanmakuSettingsPage({super.key});
 
@@ -30,6 +30,7 @@ class DanmakuSettingsPage extends StatelessWidget {
   }
 }
 
+/// 弹幕设置面板（可内嵌在播放器或设置页中）。
 class DanmakuSettingsView extends StatelessWidget {
   final Function()? onTapDanmakuShield;
   final PlayerController? playerController;
@@ -41,6 +42,8 @@ class DanmakuSettingsView extends StatelessWidget {
     super.key,
   });
 
+  DanmakuSettingsService get _settings => DanmakuSettingsService.instance;
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -51,7 +54,7 @@ class DanmakuSettingsView extends StatelessWidget {
           padding: AppStyle.edgeInsetsA12.copyWith(top: 0),
           child: Text(
             '弹幕屏蔽',
-            style: Get.textTheme.titleSmall,
+            style: Theme.of(context).textTheme.titleSmall,
           ),
         ),
         SettingsCard(
@@ -72,35 +75,36 @@ class DanmakuSettingsView extends StatelessWidget {
           padding: AppStyle.edgeInsetsA12.copyWith(top: 12),
           child: Text(
             '弹幕设置',
-            style: Get.textTheme.titleSmall,
+            style: Theme.of(context).textTheme.titleSmall,
           ),
         ),
         SettingsCard(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Obx(
-                () => SettingsSwitch(
+              ValueListenableBuilder<bool>(
+                valueListenable: _settings.danmakuEnable,
+                builder: (context, value, _) => SettingsSwitch(
                   title: '默认开关',
-                  value: DanmakuSettingsStorage.danmakuEnable.value,
+                  value: value,
                   onChanged: (e) {
                     playerController?.showDanmakuState.value = e;
-                    DanmakuSettingsStorage.setDanmakuEnable(e);
+                    _settings.setDanmakuEnable(e);
                   },
                 ),
               ),
               AppStyle.divider,
-              Obx(
-                () => SettingsNumber(
+              ValueListenableBuilder<double>(
+                valueListenable: _settings.danmakuArea,
+                builder: (context, value, _) => SettingsNumber(
                   title: '显示区域',
-                  value:
-                      (DanmakuSettingsStorage.danmakuArea.value * 100).toInt(),
+                  value: (value * 100).toInt(),
                   min: 10,
                   max: 100,
                   step: 10,
                   unit: '%',
                   onChanged: (e) {
-                    DanmakuSettingsStorage.setDanmakuArea(e / 100.0);
+                    _settings.setDanmakuArea(e / 100.0);
                     updateDanmakuOption(
                       danmakuController?.option.copyWith(area: e / 100.0),
                     );
@@ -108,17 +112,17 @@ class DanmakuSettingsView extends StatelessWidget {
                 ),
               ),
               AppStyle.divider,
-              Obx(
-                () => SettingsNumber(
+              ValueListenableBuilder<double>(
+                valueListenable: _settings.danmakuOpacity,
+                builder: (context, value, _) => SettingsNumber(
                   title: '不透明度',
-                  value: (DanmakuSettingsStorage.danmakuOpacity.value * 100)
-                      .toInt(),
+                  value: (value * 100).toInt(),
                   min: 10,
                   max: 100,
                   step: 10,
                   unit: '%',
                   onChanged: (e) {
-                    DanmakuSettingsStorage.setDanmakuOpacity(e / 100.0);
+                    _settings.setDanmakuOpacity(e / 100.0);
                     updateDanmakuOption(
                       danmakuController?.option.copyWith(opacity: e / 100.0),
                     );
@@ -126,14 +130,15 @@ class DanmakuSettingsView extends StatelessWidget {
                 ),
               ),
               AppStyle.divider,
-              Obx(
-                () => SettingsNumber(
+              ValueListenableBuilder<double>(
+                valueListenable: _settings.danmakuSize,
+                builder: (context, value, _) => SettingsNumber(
                   title: '字体大小',
-                  value: DanmakuSettingsStorage.danmakuSize.toInt(),
+                  value: value.toInt(),
                   min: 8,
                   max: 48,
                   onChanged: (e) {
-                    DanmakuSettingsStorage.setDanmakuSize(e.toDouble());
+                    _settings.setDanmakuSize(e.toDouble());
                     updateDanmakuOption(
                       danmakuController?.option
                           .copyWith(fontSize: e.toDouble()),
@@ -142,15 +147,16 @@ class DanmakuSettingsView extends StatelessWidget {
                 ),
               ),
               AppStyle.divider,
-              Obx(
-                () => SettingsNumber(
+              ValueListenableBuilder<double>(
+                valueListenable: _settings.danmakuSpeed,
+                builder: (context, value, _) => SettingsNumber(
                   title: '滚动速度',
                   subtitle: '弹幕持续时间(秒)，越小速度越快',
-                  value: DanmakuSettingsStorage.danmakuSpeed.toInt(),
+                  value: value.toInt(),
                   min: 4,
                   max: 20,
                   onChanged: (e) {
-                    DanmakuSettingsStorage.setDanmakuSpeed(e.toDouble());
+                    _settings.setDanmakuSpeed(e.toDouble());
                     updateDanmakuOption(
                       danmakuController?.option
                           .copyWith(duration: e.toDouble()),
@@ -165,42 +171,45 @@ class DanmakuSettingsView extends StatelessWidget {
           padding: AppStyle.edgeInsetsA12.copyWith(top: 12),
           child: Text(
             '外部弹幕',
-            style: Get.textTheme.titleSmall,
+            style: Theme.of(context).textTheme.titleSmall,
           ),
         ),
         SettingsCard(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Obx(
-                () => SettingsSwitch(
+              ValueListenableBuilder<bool>(
+                valueListenable: _settings.bilibiliDanmakuEnable,
+                builder: (context, value, _) => SettingsSwitch(
                   title: '哔哩哔哩弹幕',
-                  value: DanmakuSettingsStorage.bilibiliDanmakuEnable.value,
+                  value: value,
                   onChanged: (e) {
                     playerController?.bilibiliDanmakuState.value = e;
-                    DanmakuSettingsStorage.setBilibiliDanmakuEnable(e);
+                    _settings.setBilibiliDanmakuEnable(e);
                   },
                 ),
               ),
               AppStyle.divider,
-              Obx(
-                () => SettingsSwitch(
+              ValueListenableBuilder<bool>(
+                valueListenable: _settings.bilibiliHmtDanmakuEnable,
+                builder: (context, value, _) => SettingsSwitch(
                   title: '哔哩哔哩(港澳台)弹幕',
-                  value: DanmakuSettingsStorage.bilibiliHmtDanmakuEnable.value,
+                  value: value,
                   onChanged: (e) {
                     playerController?.bilibiliHmtDanmakuState.value = e;
-                    DanmakuSettingsStorage.setBilibiliHmtDanmakuEnable(e);
+                    _settings.setBilibiliHmtDanmakuEnable(e);
                   },
                 ),
               ),
               AppStyle.divider,
-              Obx(
-                () => SettingsSwitch(
+              ValueListenableBuilder<bool>(
+                valueListenable: _settings.qqDanmakuEnable,
+                builder: (context, value, _) => SettingsSwitch(
                   title: '腾讯视频弹幕',
-                  value: DanmakuSettingsStorage.qqDanmakuEnable.value,
+                  value: value,
                   onChanged: (e) {
                     playerController?.qqDanmakuState.value = e;
-                    DanmakuSettingsStorage.setQQDanmakuEnable(e);
+                    _settings.setQQDanmakuEnable(e);
                   },
                 ),
               ),

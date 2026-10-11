@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:get/get.dart';
 
 class AppColors {
   static ColorScheme lightColorScheme = ColorScheme.fromSeed(
@@ -127,7 +126,6 @@ class AppStyle {
 
   static const edgeInsetsT4 = EdgeInsets.only(top: 4);
   static const edgeInsetsT8 = EdgeInsets.only(top: 8);
-  static const edgeInsetsT12 = EdgeInsets.only(top: 12);
   static const edgeInsetsT24 = EdgeInsets.only(top: 24);
 
   static const edgeInsetsB4 = EdgeInsets.only(bottom: 4);
@@ -143,11 +141,12 @@ class AppStyle {
   static BorderRadius radius48 = BorderRadius.circular(48);
 
   /// 顶部状态栏的高度
-  static double get statusBarHeight => MediaQuery.of(Get.context!).padding.top;
+  static double statusBarHeightOf(BuildContext context) =>
+      MediaQuery.of(context).padding.top;
 
   /// 底部导航条的高度
-  static double get bottomBarHeight =>
-      MediaQuery.of(Get.context!).padding.bottom;
+  static double bottomBarHeightOf(BuildContext context) =>
+      MediaQuery.of(context).padding.bottom;
 
   static Divider get divider => Divider(
         height: 1,
