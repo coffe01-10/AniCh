@@ -14,7 +14,6 @@ class SearchPanelController extends LoadableController<dynamic> {
       searchKeyWord.value = hintText;
     }
     historyList.value = historyCacheList;
-    _init();
   }
 
   final FocusNode searchFocusNode = FocusNode();
@@ -25,10 +24,6 @@ class SearchPanelController extends LoadableController<dynamic> {
   List historyCacheList = [];
   final historyList = ValueNotifier([]);
   SearchType searchType = SearchType.picture;
-
-  void _init() {
-    searchType = data['type']!;
-  }
 
   // 搜索
   void submit() {
@@ -47,7 +42,8 @@ class SearchPanelController extends LoadableController<dynamic> {
     searchFocusNode.unfocus();
     appPushReplacementNamed(
       '/search',
-      arguments: {'type': searchType, 'keyword': searchKeyWord.value},
+      arguments:
+          SearchArguments(type: searchType, keyword: searchKeyWord.value),
       // parameters: {'type': 'bangumi', 'keyword': searchKeyWord.value}
     );
   }
