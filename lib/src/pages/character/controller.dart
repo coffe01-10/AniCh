@@ -1,12 +1,40 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:xs/src/apis/bangumi.dart';
 import 'package:xs/src/pages/character/models/character_bangumi_model.dart';
 import 'package:xs/src/pages/character/models/character_model.dart';
+import 'package:xs/src/services/loading_state.dart';
+import 'package:xs/src/widgets/controller_builder.dart';
 
-class CharacterController extends GetxController
-    with StateMixin, GetTickerProviderStateMixin {
-  RxInt id = 0.obs;
+class CharacterController extends LoadableController<dynamic>
+    implements VsyncAttachable {
+  CharacterController(int id) {
+    this.id.value = id;
+    _init();
+  }
+
+  TickerProvider? _vsync;
+
+  @override
+  void attach(TickerProvider vsync) {
+    _vsync = vsync;
+    tabController =
+        TabController(vsync: vsync, length: tabs.length, initialIndex: 0);
+    tabController.addListener(() {
+      tabIndex.value = (tabController.index);
+    });
+    animationController = AnimationController(
+      vsync: vsync,
+      duration: const Duration(milliseconds: 500),
+    );
+  }
+
+  @override
+  void detach() {
+    tabController.dispose();
+    animationController.dispose();
+  }
+
+  final ValueNotifier<int> id = ValueNotifier(0);
   Character result = Character();
 
   // 导航栏
@@ -20,69 +48,56 @@ class CharacterController extends GetxController
   ];
 
   late TabController tabController;
-  RxInt tabIndex = 0.obs;
+  final ValueNotifier<int> tabIndex = ValueNotifier(0);
 
   late final AnimationController animationController;
 
-  @override
-  void onInit() {
-    id(Get.arguments['id']);
+  void _init() {
     getInfo();
-    super.onInit();
-
-    tabController =
-        TabController(vsync: this, length: tabs.length, initialIndex: 0);
-    tabController.addListener(() {
-      tabIndex(tabController.index);
-    });
-
-    animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 500),
-    );
   }
 
   // 获取数据
   void getInfo() async {
     try {
       debugPrint('CharacterController-getInfo');
-      change(null, status: RxStatus.loading());
+      change(null, status: LoadStatus.loading);
       final response = await BangumiApi.getCharacter(id: id.value);
       final data = Character.fromJson(response.data);
       result = data;
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
-      change(null, status: RxStatus.error('error'));
+      change(null, status: LoadStatus.error, error: 'error');
     }
   }
 }
 
-class CharacterIndexController extends GetxController
-    with StateMixin<List<Data>>, GetSingleTickerProviderStateMixin {
-  RxInt id = 0.obs;
-  List<Data> result = [];
-  RxBool isLoading = false.obs;
+class CharacterIndexController extends LoadableController<List<Data>> {
+  CharacterIndexController(int id) {
+    this.id.value = id;
+    _init();
+  }
 
-  @override
-  void onInit() {
-    id(Get.arguments['id']);
+  final ValueNotifier<int> id = ValueNotifier(0);
+  List<Data> result = [];
+  final ValueNotifier<bool> isLoading = ValueNotifier(false);
+
+  void _init() {
     get();
-    super.onInit();
   }
 
   // 获取数据
   void get() async {
     try {
       debugPrint('CharacterIndexController-get');
-      change(null, status: RxStatus.loading());
+      change(null, status: LoadStatus.loading);
       final response = await BangumiApi.getCharacterBangumi(id: id.value);
       final data = CharacterBangumi.fromJson(response.data);
       result.addAll(data.data as Iterable<Data>);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
-      change(null, status: RxStatus.error('error'));
+      change(null, status: LoadStatus.error, error: 'error');
     }
   }
 
@@ -90,16 +105,16 @@ class CharacterIndexController extends GetxController
   void more() async {
     try {
       debugPrint('CharacterIndexController-more');
-      isLoading(true);
+      isLoading.value = (true);
       final response = await BangumiApi.getCharacterBangumi(
           id: id.value, skip: result.length);
       final data = CharacterBangumi.fromJson(response.data);
       result.addAll(data.data as Iterable<Data>);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
     }
-    isLoading(false);
+    isLoading.value = (false);
   }
 
   // 刷新
@@ -110,7 +125,7 @@ class CharacterIndexController extends GetxController
       final data = CharacterBangumi.fromJson(response.data);
       result.clear();
       result.addAll(data.data as Iterable<Data>);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
     }

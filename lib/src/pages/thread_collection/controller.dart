@@ -1,10 +1,33 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:xs/src/apis/thread.dart';
 import 'package:xs/src/pages/thread_collection/models/thread_collection_model.dart';
+import 'package:xs/src/services/loading_state.dart';
+import 'package:xs/src/widgets/controller_builder.dart';
 
-class ThreadCollectionController extends GetxController
-    with StateMixin, GetTickerProviderStateMixin {
+class ThreadCollectionController extends LoadableController<dynamic>
+    implements VsyncAttachable {
+  TickerProvider? _vsync;
+
+  @override
+  void attach(TickerProvider vsync) {
+    _vsync = vsync;
+    tabController =
+        TabController(vsync: vsync, length: tabs.length, initialIndex: 0);
+    tabController.addListener(() {
+      tabIndex.value = (tabController.index);
+    });
+    animationController = AnimationController(
+      vsync: vsync,
+      duration: const Duration(milliseconds: 500),
+    );
+  }
+
+  @override
+  void detach() {
+    tabController.dispose();
+    animationController.dispose();
+  }
+
   // 导航栏
   final List<Tab> tabs = <Tab>[
     const Tab(
@@ -28,78 +51,64 @@ class ThreadCollectionController extends GetxController
   ];
 
   late TabController tabController;
-  RxInt tabIndex = 0.obs;
+  final ValueNotifier<int> tabIndex = ValueNotifier(0);
 
   late final AnimationController animationController;
 
   @override
-  void onInit() {
-    super.onInit();
-
-    tabController =
-        TabController(vsync: this, length: tabs.length, initialIndex: 0);
-    tabController.addListener(() {
-      tabIndex(tabController.index);
-    });
-
-    animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 500),
-    );
-  }
-
-  @override
   void dispose() {
-    tabController.dispose();
     super.dispose();
   }
 }
 
-class ThreadAllCollectionController extends GetxController
-    with StateMixin<List<Data>> {
-  List<Data> result = [];
-  RxBool isLoading = false.obs;
-  RxInt page = 1.obs;
+class ThreadAllCollectionController extends LoadableController<List<Data>> {
+  ThreadAllCollectionController() {
+    _init();
+  }
 
-  @override
-  void onInit() {
+  List<Data> result = [];
+  final ValueNotifier<bool> isLoading = ValueNotifier(false);
+  final ValueNotifier<int> page = ValueNotifier(1);
+
+  void _init() {
     get();
-    super.onInit();
   }
 
   // 获取数据
   void get() async {
     try {
       debugPrint('ThreadAllCollectionController-get');
-      change(null, status: RxStatus.loading());
+      change(null, status: LoadStatus.loading);
       final response = await ThreadApi.getCollect(type: '', page: 1);
       final data = ThreadCollection.fromJson(response.data);
       result.addAll(data.body!.data as Iterable<Data>);
-      page((data.body?.next as bool ? data.body!.next : 0) as int?);
-      change(result, status: RxStatus.success());
+      page.value =
+          ((data.body?.next as bool ? data.body!.next : 0) as int?) ?? 0;
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
-      change(null, status: RxStatus.error('error'));
+      change(null, status: LoadStatus.error, error: 'error');
     }
   }
 
   // 加载更多
   void more() async {
     try {
-      if (page < 1) {
+      if (page.value < 1) {
         return;
       }
       debugPrint('ThreadAllCollectionController-more');
-      isLoading(true);
+      isLoading.value = (true);
       final response = await ThreadApi.getCollect(type: '', page: page.value);
       final data = ThreadCollection.fromJson(response.data);
       result.addAll(data.body!.data as Iterable<Data>);
-      page((data.body?.next as bool ? data.body!.next : 0) as int?);
-      change(result, status: RxStatus.success());
+      page.value =
+          ((data.body?.next as bool ? data.body!.next : 0) as int?) ?? 0;
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
     }
-    isLoading(false);
+    isLoading.value = (false);
   }
 
   // 刷新
@@ -110,8 +119,9 @@ class ThreadAllCollectionController extends GetxController
       final data = ThreadCollection.fromJson(response.data);
       result.clear();
       result.addAll(data.body!.data as Iterable<Data>);
-      page((data.body?.next as bool ? data.body!.next : 0) as int?);
-      change(result, status: RxStatus.success());
+      page.value =
+          ((data.body?.next as bool ? data.body!.next : 0) as int?) ?? 0;
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
     }
@@ -119,52 +129,55 @@ class ThreadAllCollectionController extends GetxController
   }
 }
 
-class ThreadArtworkCollectionController extends GetxController
-    with StateMixin<List<Data>> {
-  List<Data> result = [];
-  RxBool isLoading = false.obs;
-  RxInt page = 1.obs;
+class ThreadArtworkCollectionController extends LoadableController<List<Data>> {
+  ThreadArtworkCollectionController() {
+    _init();
+  }
 
-  @override
-  void onInit() {
+  List<Data> result = [];
+  final ValueNotifier<bool> isLoading = ValueNotifier(false);
+  final ValueNotifier<int> page = ValueNotifier(1);
+
+  void _init() {
     get();
-    super.onInit();
   }
 
   // 获取数据
   void get() async {
     try {
       debugPrint('ThreadArtworkCollectionController-get');
-      change(null, status: RxStatus.loading());
+      change(null, status: LoadStatus.loading);
       final response = await ThreadApi.getCollect(type: 'artwork', page: 1);
       final data = ThreadCollection.fromJson(response.data);
       result.addAll(data.body!.data as Iterable<Data>);
-      page((data.body?.next as bool ? data.body!.next : 0) as int?);
-      change(result, status: RxStatus.success());
+      page.value =
+          ((data.body?.next as bool ? data.body!.next : 0) as int?) ?? 0;
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
-      change(null, status: RxStatus.error('error'));
+      change(null, status: LoadStatus.error, error: 'error');
     }
   }
 
   // 加载更多
   void more() async {
     try {
-      if (page < 1) {
+      if (page.value < 1) {
         return;
       }
       debugPrint('ThreadArtworkCollectionController-more');
-      isLoading(true);
+      isLoading.value = (true);
       final response =
           await ThreadApi.getCollect(type: 'artwork', page: page.value);
       final data = ThreadCollection.fromJson(response.data);
       result.addAll(data.body!.data as Iterable<Data>);
-      page((data.body?.next as bool ? data.body!.next : 0) as int?);
-      change(result, status: RxStatus.success());
+      page.value =
+          ((data.body?.next as bool ? data.body!.next : 0) as int?) ?? 0;
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
     }
-    isLoading(false);
+    isLoading.value = (false);
   }
 
   // 刷新
@@ -175,8 +188,9 @@ class ThreadArtworkCollectionController extends GetxController
       final data = ThreadCollection.fromJson(response.data);
       result.clear();
       result.addAll(data.body!.data as Iterable<Data>);
-      page((data.body?.next as bool ? data.body!.next : 0) as int?);
-      change(result, status: RxStatus.success());
+      page.value =
+          ((data.body?.next as bool ? data.body!.next : 0) as int?) ?? 0;
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
     }
@@ -184,52 +198,55 @@ class ThreadArtworkCollectionController extends GetxController
   }
 }
 
-class ThreadCosplayCollectionController extends GetxController
-    with StateMixin<List<Data>> {
-  List<Data> result = [];
-  RxBool isLoading = false.obs;
-  RxInt page = 1.obs;
+class ThreadCosplayCollectionController extends LoadableController<List<Data>> {
+  ThreadCosplayCollectionController() {
+    _init();
+  }
 
-  @override
-  void onInit() {
+  List<Data> result = [];
+  final ValueNotifier<bool> isLoading = ValueNotifier(false);
+  final ValueNotifier<int> page = ValueNotifier(1);
+
+  void _init() {
     get();
-    super.onInit();
   }
 
   // 获取数据
   void get() async {
     try {
       debugPrint('ThreadCosplayCollectionController-get');
-      change(null, status: RxStatus.loading());
+      change(null, status: LoadStatus.loading);
       final response = await ThreadApi.getCollect(type: 'cosplay', page: 1);
       final data = ThreadCollection.fromJson(response.data);
       result.addAll(data.body!.data as Iterable<Data>);
-      page((data.body?.next as bool ? data.body!.next : 0) as int?);
-      change(result, status: RxStatus.success());
+      page.value =
+          ((data.body?.next as bool ? data.body!.next : 0) as int?) ?? 0;
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
-      change(null, status: RxStatus.error('error'));
+      change(null, status: LoadStatus.error, error: 'error');
     }
   }
 
   // 加载更多
   void more() async {
     try {
-      if (page < 1) {
+      if (page.value < 1) {
         return;
       }
       debugPrint('ThreadCosplayCollectionController-more');
-      isLoading(true);
+      isLoading.value = (true);
       final response =
           await ThreadApi.getCollect(type: 'cosplay', page: page.value);
       final data = ThreadCollection.fromJson(response.data);
       result.addAll(data.body!.data as Iterable<Data>);
-      page((data.body?.next as bool ? data.body!.next : 0) as int?);
-      change(result, status: RxStatus.success());
+      page.value =
+          ((data.body?.next as bool ? data.body!.next : 0) as int?) ?? 0;
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
     }
-    isLoading(false);
+    isLoading.value = (false);
   }
 
   // 刷新
@@ -240,8 +257,9 @@ class ThreadCosplayCollectionController extends GetxController
       final data = ThreadCollection.fromJson(response.data);
       result.clear();
       result.addAll(data.body!.data as Iterable<Data>);
-      page((data.body?.next as bool ? data.body!.next : 0) as int?);
-      change(result, status: RxStatus.success());
+      page.value =
+          ((data.body?.next as bool ? data.body!.next : 0) as int?) ?? 0;
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
     }

@@ -36,7 +36,6 @@ dependencies:
   cupertino_icons: ^1.0.6
 
   # 框架、工具
-  get: ^4.6.6 # 状态管理、路由管理、国际化
   protobuf: ^3.1.0 # dart pub global activate protoc_plugin
   dio: ^5.4.3+1 # 网络请求
   get_storage: ^2.1.1 # 持久化

@@ -80,7 +80,14 @@ final $typed_data.Uint8List bilibili_danmaku_item_Descriptor = $convert.base64De
 const bilibili_danmaku_$json = {
   '1': '_bilibili_danmaku',
   '2': [
-    {'1': 'list', '3': 1, '4': 3, '5': 11, '6': '.danmaku._bilibili_danmaku_item', '10': 'list'},
+    {
+      '1': 'list',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.danmaku._bilibili_danmaku_item',
+      '10': 'list'
+    },
   ],
 };
 
@@ -88,4 +95,3 @@ const bilibili_danmaku_$json = {
 final $typed_data.Uint8List bilibili_danmaku_Descriptor = $convert.base64Decode(
     'ChFfYmlsaWJpbGlfZGFubWFrdRIzCgRsaXN0GAEgAygLMh8uZGFubWFrdS5fYmlsaWJpbGlfZG'
     'FubWFrdV9pdGVtUgRsaXN0');
-

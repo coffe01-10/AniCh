@@ -65,9 +65,7 @@ class _ReplyItemState extends State<ReplyItem> {
         sendFn: (json) async {
           Navigator.of(sheetContext).pop();
           final data = await widget.controller.replyComment(
-              json: json,
-              parent: widget.comment['id'],
-              reply: reply['id']);
+              json: json, parent: widget.comment['id'], reply: reply['id']);
           if (data.isNotEmpty) {
             widget.controller.appendReply(data);
           }
@@ -86,7 +84,8 @@ class _ReplyItemState extends State<ReplyItem> {
       child: InkWell(
         onTap: () {},
         child: Container(
-          padding: const EdgeInsets.only(top: 5, bottom: 0, left: 10, right: 10),
+          padding:
+              const EdgeInsets.only(top: 5, bottom: 0, left: 10, right: 10),
           child: Column(
             children: [
               Row(
@@ -128,9 +127,8 @@ class _ReplyItemState extends State<ReplyItem> {
                           child: Row(
                             children: [
                               Text(
-                                Time.dateFormat(
-                                    DateTime.parse(reply['created'])
-                                        .millisecondsSinceEpoch),
+                                Time.dateFormat(DateTime.parse(reply['created'])
+                                    .millisecondsSinceEpoch),
                                 style: const TextStyle(fontSize: 12),
                               ),
                               if (reply['to'].isNotEmpty) ...[
@@ -192,9 +190,7 @@ class _ReplyItemState extends State<ReplyItem> {
                                               : null,
                                         ),
                                         Text(
-                                          _likeCount > 0
-                                              ? '$_likeCount'
-                                              : '点赞',
+                                          _likeCount > 0 ? '$_likeCount' : '点赞',
                                           style: TextStyle(
                                             color: _like
                                                 ? Theme.of(context)

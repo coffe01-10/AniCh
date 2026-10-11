@@ -1,10 +1,33 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:xs/protobuf/list.pb.dart';
 import 'package:xs/src/apis/home.dart';
+import 'package:xs/src/services/loading_state.dart';
+import 'package:xs/src/widgets/controller_builder.dart';
 
-class HomeController extends GetxController
-    with StateMixin, GetTickerProviderStateMixin {
+class HomeController extends LoadableController<dynamic>
+    implements VsyncAttachable {
+  TickerProvider? _vsync;
+
+  @override
+  void attach(TickerProvider vsync) {
+    _vsync = vsync;
+    tabController =
+        TabController(vsync: vsync, length: tabs.length, initialIndex: 1);
+    tabController.addListener(() {
+      tabIndex.value = (tabController.index);
+    });
+    animationController = AnimationController(
+      vsync: vsync,
+      duration: const Duration(milliseconds: 500),
+    );
+  }
+
+  @override
+  void detach() {
+    tabController.dispose();
+    animationController.dispose();
+  }
+
   // 导航栏
   final List<Tab> tabs = <Tab>[
     const Tab(
@@ -34,58 +57,40 @@ class HomeController extends GetxController
   ];
 
   late TabController tabController;
-  RxInt tabIndex = 1.obs;
+  final ValueNotifier<int> tabIndex = ValueNotifier(1);
 
   late final AnimationController animationController;
 
   @override
-  void onInit() {
-    super.onInit();
-
-    tabController =
-        TabController(vsync: this, length: tabs.length, initialIndex: 1);
-    tabController.addListener(() {
-      tabIndex(tabController.index);
-    });
-
-    animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 500),
-    );
-  }
-
-  @override
   void dispose() {
-    tabController.dispose();
     super.dispose();
   }
 }
 
-class HomeAllController extends GetxController
-    with
-        StateMixin<List<thread_list_data_>>,
-        GetSingleTickerProviderStateMixin {
-  List<thread_list_data_> result = [];
-  RxBool isLoading = false.obs;
+class HomeAllController extends LoadableController<List<thread_list_data_>> {
+  HomeAllController() {
+    _init();
+  }
 
-  @override
-  void onInit() {
+  List<thread_list_data_> result = [];
+  final ValueNotifier<bool> isLoading = ValueNotifier(false);
+
+  void _init() {
     get();
-    super.onInit();
   }
 
   // 获取数据
   void get() async {
     try {
       debugPrint('HomeAllController-get');
-      change(result, status: RxStatus.loading());
+      change(result, status: LoadStatus.loading);
       final response = await HomeApi.getThreadList();
       final data = thread_list_.fromBuffer(response.data);
       result.addAll(data.body.data);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
-      change(null, status: RxStatus.error('error'));
+      change(null, status: LoadStatus.error, error: 'error');
     }
   }
 
@@ -93,15 +98,15 @@ class HomeAllController extends GetxController
   void more() async {
     try {
       debugPrint('HomeAllController-more');
-      isLoading(true);
+      isLoading.value = (true);
       final response = await HomeApi.getThreadList(skip: result.last.id);
       final data = thread_list_.fromBuffer(response.data);
       result.addAll(data.body.data);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
     }
-    isLoading(false);
+    isLoading.value = (false);
   }
 
   // 刷新
@@ -112,7 +117,7 @@ class HomeAllController extends GetxController
       final data = thread_list_.fromBuffer(response.data);
       result.clear();
       result.addAll(data.body.data);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
     }
@@ -120,31 +125,31 @@ class HomeAllController extends GetxController
   }
 }
 
-class HomeArtworkController extends GetxController
-    with
-        StateMixin<List<thread_list_data_>>,
-        GetSingleTickerProviderStateMixin {
-  List<thread_list_data_> result = [];
-  RxBool isLoading = false.obs;
+class HomeArtworkController
+    extends LoadableController<List<thread_list_data_>> {
+  HomeArtworkController() {
+    _init();
+  }
 
-  @override
-  void onInit() {
+  List<thread_list_data_> result = [];
+  final ValueNotifier<bool> isLoading = ValueNotifier(false);
+
+  void _init() {
     get();
-    super.onInit();
   }
 
   // 获取数据
   void get() async {
     try {
       debugPrint('HomeArtworkController-get');
-      change(result, status: RxStatus.loading());
+      change(result, status: LoadStatus.loading);
       final response = await HomeApi.getThreadList(type: 'artwork');
       final data = thread_list_.fromBuffer(response.data);
       result.addAll(data.body.data);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
-      change(null, status: RxStatus.error('error'));
+      change(null, status: LoadStatus.error, error: 'error');
     }
   }
 
@@ -152,16 +157,16 @@ class HomeArtworkController extends GetxController
   void more() async {
     try {
       debugPrint('HomeArtworkController-more');
-      isLoading(true);
+      isLoading.value = (true);
       final response =
           await HomeApi.getThreadList(type: 'artwork', skip: result.last.id);
       final data = thread_list_.fromBuffer(response.data);
       result.addAll(data.body.data);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
     }
-    isLoading(false);
+    isLoading.value = (false);
   }
 
   // 刷新
@@ -172,7 +177,7 @@ class HomeArtworkController extends GetxController
       final data = thread_list_.fromBuffer(response.data);
       result.clear();
       result.addAll(data.body.data);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
     }
@@ -180,31 +185,31 @@ class HomeArtworkController extends GetxController
   }
 }
 
-class HomeCosplayController extends GetxController
-    with
-        StateMixin<List<thread_list_data_>>,
-        GetSingleTickerProviderStateMixin {
-  List<thread_list_data_> result = [];
-  RxBool isLoading = false.obs;
+class HomeCosplayController
+    extends LoadableController<List<thread_list_data_>> {
+  HomeCosplayController() {
+    _init();
+  }
 
-  @override
-  void onInit() {
+  List<thread_list_data_> result = [];
+  final ValueNotifier<bool> isLoading = ValueNotifier(false);
+
+  void _init() {
     get();
-    super.onInit();
   }
 
   // 获取数据
   void get() async {
     try {
       debugPrint('HomeCosplayController-get');
-      change(result, status: RxStatus.loading());
+      change(result, status: LoadStatus.loading);
       final response = await HomeApi.getThreadList(type: 'cosplay');
       final data = thread_list_.fromBuffer(response.data);
       result.addAll(data.body.data);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
-      change(null, status: RxStatus.error('error'));
+      change(null, status: LoadStatus.error, error: 'error');
     }
   }
 
@@ -212,16 +217,16 @@ class HomeCosplayController extends GetxController
   void more() async {
     try {
       debugPrint('HomeCosplayController-more');
-      isLoading(true);
+      isLoading.value = (true);
       final response =
           await HomeApi.getThreadList(type: 'cosplay', skip: result.last.id);
       final data = thread_list_.fromBuffer(response.data);
       result.addAll(data.body.data);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
     }
-    isLoading(false);
+    isLoading.value = (false);
   }
 
   // 刷新
@@ -232,7 +237,7 @@ class HomeCosplayController extends GetxController
       final data = thread_list_.fromBuffer(response.data);
       result.clear();
       result.addAll(data.body.data);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
     }
@@ -240,30 +245,31 @@ class HomeCosplayController extends GetxController
   }
 }
 
-class HomeTagsController extends GetxController
-    with StateMixin<List<Tag>>, GetSingleTickerProviderStateMixin {
-  List<Tag> result = [];
-  RxBool isLoading = false.obs;
+class HomeTagsController extends LoadableController<List<Tag>> {
+  HomeTagsController() {
+    _init();
+  }
 
-  @override
-  void onInit() {
+  List<Tag> result = [];
+  final ValueNotifier<bool> isLoading = ValueNotifier(false);
+
+  void _init() {
     get();
-    super.onInit();
   }
 
   // 获取数据
   void get() async {
     try {
       debugPrint('HomeTagsController-get');
-      change(result, status: RxStatus.loading());
+      change(result, status: LoadStatus.loading);
       final response = await HomeApi.getTags();
       List<Tag> tagsList =
           List<Tag>.from(response.data.map((e) => Tag.fromJson(e)));
       result.addAll(tagsList);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
-      change(null, status: RxStatus.error('error'));
+      change(null, status: LoadStatus.error, error: 'error');
     }
   }
 
@@ -271,16 +277,16 @@ class HomeTagsController extends GetxController
   void more() async {
     try {
       debugPrint('HomeTagsController-more');
-      isLoading(true);
+      isLoading.value = (true);
       final response = await HomeApi.getTags(skip: result.length);
       List<Tag> tagsList =
           List<Tag>.from(response.data.map((e) => Tag.fromJson(e)));
       result.addAll(tagsList);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
     }
-    isLoading(false);
+    isLoading.value = (false);
   }
 
   // 刷新
@@ -292,7 +298,7 @@ class HomeTagsController extends GetxController
           List<Tag>.from(response.data.map((e) => Tag.fromJson(e)));
       result.clear();
       result.addAll(tagsList);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
     }

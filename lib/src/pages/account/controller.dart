@@ -2,24 +2,24 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
-import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:xs/protobuf/account.pb.dart';
 import 'package:xs/src/apis/account.dart';
+import 'package:xs/src/services/loading_state.dart';
 
-class LoginController extends GetxController with StateMixin {
+class LoginController extends LoadableController<dynamic> {
   final box = GetStorage();
-  final user = ''.obs;
-  final password = ''.obs;
+  final user = ValueNotifier('');
+  final password = ValueNotifier('');
   SmartDialogController smartDialogController = SmartDialogController();
 
   Future<login_?> login() async {
     SmartDialog.showLoading();
-    change(null, status: RxStatus.loading());
+    change(null, status: LoadStatus.loading);
     final response =
         await AccountApi.login(user: user.value, password: password.value);
     if (response.statusCode != 200) {
-      change(null, status: RxStatus.error('error'));
+      change(null, status: LoadStatus.error, error: 'error');
     } else {
       try {
         final data = login_.fromBuffer(response.data);
@@ -27,7 +27,7 @@ class LoginController extends GetxController with StateMixin {
         box.write('token', data.body.token);
         // box.write('user', data.writeToBuffer().toList());
         box.write('user', jsonDecode(jsonEncode(user)));
-        change(data, status: RxStatus.success());
+        change(data, status: LoadStatus.success);
         SmartDialog.dismiss();
         return data;
       } catch (e) {
@@ -41,21 +41,21 @@ class LoginController extends GetxController with StateMixin {
   }
 }
 
-class RegisterController extends GetxController with StateMixin {
+class RegisterController extends LoadableController<dynamic> {
   final box = GetStorage();
-  final email = ''.obs;
-  final code = ''.obs;
-  final name = ''.obs;
-  final password = ''.obs;
+  final email = ValueNotifier('');
+  final code = ValueNotifier('');
+  final name = ValueNotifier('');
+  final password = ValueNotifier('');
 
   Future<bool> getCode() async {
-    change(false, status: RxStatus.loading());
+    change(false, status: LoadStatus.loading);
     try {
       final response = await AccountApi.getCode(email: email.value);
       if (response.statusCode != 200) {
-        change(false, status: RxStatus.error('error'));
+        change(false, status: LoadStatus.error, error: 'error');
       } else {
-        change(true, status: RxStatus.success());
+        change(true, status: LoadStatus.success);
         return true;
       }
     } catch (e) {
@@ -65,14 +65,14 @@ class RegisterController extends GetxController with StateMixin {
   }
 
   Future<bool> checkEmail() async {
-    change(false, status: RxStatus.loading());
+    change(false, status: LoadStatus.loading);
     try {
       final response = await AccountApi.checkEmail(email: email.value);
       if (response.statusCode != 200) {
-        change(false, status: RxStatus.error('error'));
+        change(false, status: LoadStatus.error, error: 'error');
       } else {
         final data = response.data['body']['exist'];
-        change(data, status: RxStatus.success());
+        change(data, status: LoadStatus.success);
         return data;
       }
     } catch (e) {
@@ -82,14 +82,14 @@ class RegisterController extends GetxController with StateMixin {
   }
 
   Future<bool> checkName() async {
-    change(false, status: RxStatus.loading());
+    change(false, status: LoadStatus.loading);
     try {
       final response = await AccountApi.checkName(name: name.value);
       if (response.statusCode != 200) {
-        change(false, status: RxStatus.error('error'));
+        change(false, status: LoadStatus.error, error: 'error');
       } else {
         final data = response.data['body']['exist'];
-        change(data, status: RxStatus.success());
+        change(data, status: LoadStatus.success);
         return data;
       }
     } catch (e) {
@@ -100,7 +100,7 @@ class RegisterController extends GetxController with StateMixin {
 
   Future<bool> register() async {
     SmartDialog.showLoading();
-    change(false, status: RxStatus.loading());
+    change(false, status: LoadStatus.loading);
     try {
       final response = await AccountApi.register(
           email: email.value,
@@ -108,14 +108,14 @@ class RegisterController extends GetxController with StateMixin {
           name: name.value,
           password: password.value);
       if (response.statusCode != 200) {
-        change(false, status: RxStatus.error('error'));
+        change(false, status: LoadStatus.error, error: 'error');
       } else {
         final data = register_.fromBuffer(response.data);
         if (!data.error) {
           final user = data.body.user.toProto3Json();
           box.write('token', data.body.token);
           box.write('user', jsonDecode(jsonEncode(user)));
-          change(true, status: RxStatus.success());
+          change(true, status: LoadStatus.success);
           SmartDialog.dismiss();
           return true;
         }
@@ -123,26 +123,26 @@ class RegisterController extends GetxController with StateMixin {
     } catch (e) {
       debugPrint(e.toString());
     }
-    change(false, status: RxStatus.error('error'));
+    change(false, status: LoadStatus.error, error: 'error');
     SmartDialog.dismiss();
     return false;
   }
 }
 
-class ChangePasswordController extends GetxController with StateMixin {
+class ChangePasswordController extends LoadableController<dynamic> {
   final box = GetStorage();
-  final email = ''.obs;
-  final code = ''.obs;
-  final password = ''.obs;
+  final email = ValueNotifier('');
+  final code = ValueNotifier('');
+  final password = ValueNotifier('');
 
   Future<bool> getCode() async {
-    change(false, status: RxStatus.loading());
+    change(false, status: LoadStatus.loading);
     try {
       final response = await AccountApi.getCode(email: email.value);
       if (response.statusCode != 200) {
-        change(false, status: RxStatus.error('error'));
+        change(false, status: LoadStatus.error, error: 'error');
       } else {
-        change(true, status: RxStatus.success());
+        change(true, status: LoadStatus.success);
         return true;
       }
     } catch (e) {
@@ -153,19 +153,19 @@ class ChangePasswordController extends GetxController with StateMixin {
 
   Future<bool> changePassword() async {
     SmartDialog.dismiss();
-    change(false, status: RxStatus.loading());
+    change(false, status: LoadStatus.loading);
     try {
       final response = await AccountApi.changePassword(
           email: email.value, code: code.value, password: password.value);
       if (response.statusCode != 200) {
-        change(false, status: RxStatus.error('error'));
+        change(false, status: LoadStatus.error, error: 'error');
       } else {
         final data = change_password_.fromBuffer(response.data);
         if (!data.error) {
           final user = data.body.user.toProto3Json();
           box.write('token', data.body.token);
           box.write('user', jsonDecode(jsonEncode(user)));
-          change(true, status: RxStatus.success());
+          change(true, status: LoadStatus.success);
           SmartDialog.dismiss();
           return true;
         }
@@ -173,7 +173,7 @@ class ChangePasswordController extends GetxController with StateMixin {
     } catch (e) {
       debugPrint(e.toString());
     }
-    change(false, status: RxStatus.error('error'));
+    change(false, status: LoadStatus.error, error: 'error');
     SmartDialog.dismiss();
     return false;
   }

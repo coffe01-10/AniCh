@@ -44,7 +44,14 @@ final $typed_data.Uint8List login_user_Descriptor = $convert.base64Decode(
 const login_body_$json = {
   '1': '_login_body',
   '2': [
-    {'1': 'user', '3': 1, '4': 1, '5': 11, '6': '.account._login_user', '10': 'user'},
+    {
+      '1': 'user',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.account._login_user',
+      '10': 'user'
+    },
     {'1': 'token', '3': 2, '4': 1, '5': 9, '10': 'token'},
   ],
 };
@@ -60,7 +67,14 @@ const login_$json = {
   '2': [
     {'1': 'error', '3': 1, '4': 1, '5': 8, '10': 'error'},
     {'1': 'message', '3': 2, '4': 1, '5': 9, '10': 'message'},
-    {'1': 'body', '3': 3, '4': 1, '5': 11, '6': '.account._login_body', '10': 'body'},
+    {
+      '1': 'body',
+      '3': 3,
+      '4': 1,
+      '5': 11,
+      '6': '.account._login_body',
+      '10': 'body'
+    },
   ],
 };
 
@@ -113,7 +127,14 @@ final $typed_data.Uint8List register_user_Descriptor = $convert.base64Decode(
 const register_body_$json = {
   '1': '_register_body',
   '2': [
-    {'1': 'user', '3': 1, '4': 1, '5': 11, '6': '.account._register_user', '10': 'user'},
+    {
+      '1': 'user',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.account._register_user',
+      '10': 'user'
+    },
     {'1': 'token', '3': 2, '4': 1, '5': 9, '10': 'token'},
   ],
 };
@@ -129,7 +150,14 @@ const register_$json = {
   '2': [
     {'1': 'error', '3': 1, '4': 1, '5': 8, '10': 'error'},
     {'1': 'message', '3': 2, '4': 1, '5': 9, '10': 'message'},
-    {'1': 'body', '3': 3, '4': 1, '5': 11, '6': '.account._register_body', '10': 'body'},
+    {
+      '1': 'body',
+      '3': 3,
+      '4': 1,
+      '5': 11,
+      '6': '.account._register_body',
+      '10': 'body'
+    },
   ],
 };
 
@@ -184,7 +212,14 @@ final $typed_data.Uint8List change_password_user_Descriptor = $convert.base64Dec
 const change_password_body_$json = {
   '1': '_change_password_body',
   '2': [
-    {'1': 'user', '3': 1, '4': 1, '5': 11, '6': '.account._change_password_user', '10': 'user'},
+    {
+      '1': 'user',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.account._change_password_user',
+      '10': 'user'
+    },
     {'1': 'token', '3': 2, '4': 1, '5': 9, '10': 'token'},
   ],
 };
@@ -200,7 +235,14 @@ const change_password_$json = {
   '2': [
     {'1': 'error', '3': 1, '4': 1, '5': 8, '10': 'error'},
     {'1': 'message', '3': 2, '4': 1, '5': 9, '10': 'message'},
-    {'1': 'body', '3': 3, '4': 1, '5': 11, '6': '.account._change_password_body', '10': 'body'},
+    {
+      '1': 'body',
+      '3': 3,
+      '4': 1,
+      '5': 11,
+      '6': '.account._change_password_body',
+      '10': 'body'
+    },
   ],
 };
 
@@ -221,9 +263,10 @@ const change_password_request_$json = {
 };
 
 /// Descriptor for `_change_password_request`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List change_password_request_Descriptor = $convert.base64Decode(
-    'ChhfY2hhbmdlX3Bhc3N3b3JkX3JlcXVlc3QSFAoFZW1haWwYASABKAlSBWVtYWlsEhIKBGNvZG'
-    'UYAiABKAlSBGNvZGUSGgoIcGFzc3dvcmQYAyABKAlSCHBhc3N3b3Jk');
+final $typed_data.Uint8List change_password_request_Descriptor =
+    $convert.base64Decode(
+        'ChhfY2hhbmdlX3Bhc3N3b3JkX3JlcXVlc3QSFAoFZW1haWwYASABKAlSBWVtYWlsEhIKBGNvZG'
+        'UYAiABKAlSBGNvZGUSGgoIcGFzc3dvcmQYAyABKAlSCHBhc3N3b3Jk');
 
 @$core.Deprecated('Use init_user_Descriptor instead')
 const init_user_$json = {
@@ -256,7 +299,14 @@ final $typed_data.Uint8List init_user_Descriptor = $convert.base64Decode(
 const init_body_$json = {
   '1': '_init_body',
   '2': [
-    {'1': 'user', '3': 1, '4': 1, '5': 11, '6': '.account._init_user', '10': 'user'},
+    {
+      '1': 'user',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.account._init_user',
+      '10': 'user'
+    },
   ],
 };
 
@@ -270,7 +320,14 @@ const init_$json = {
   '2': [
     {'1': 'error', '3': 1, '4': 1, '5': 8, '10': 'error'},
     {'1': 'message', '3': 2, '4': 1, '5': 9, '10': 'message'},
-    {'1': 'body', '3': 3, '4': 1, '5': 11, '6': '.account._init_body', '10': 'body'},
+    {
+      '1': 'body',
+      '3': 3,
+      '4': 1,
+      '5': 11,
+      '6': '.account._init_body',
+      '10': 'body'
+    },
   ],
 };
 
@@ -291,4 +348,3 @@ const token_$json = {
 /// Descriptor for `_token`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List token_Descriptor = $convert.base64Decode(
     'CgZfdG9rZW4SFAoFdG9rZW4YASABKAlSBXRva2VuEhIKBHRpbWUYAiABKAlSBHRpbWU=');
-

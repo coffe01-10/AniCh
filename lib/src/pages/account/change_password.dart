@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:xs/src/pages/account/controller.dart';
 import 'package:xs/src/widgets/navbar.dart';
+import 'package:xs/src/app/routes.dart';
+import 'package:xs/src/widgets/controller_builder.dart';
 
 class ChangePasswordPage extends StatelessWidget {
   const ChangePasswordPage({super.key});
@@ -11,10 +12,10 @@ class ChangePasswordPage extends StatelessWidget {
     final emailKey = GlobalKey<FormState>();
     final codeKey = GlobalKey<FormState>();
     final passwordKey = GlobalKey<FormState>();
-    RxBool getCodeStatus = false.obs;
-    return GetBuilder(
-        init: ChangePasswordController(),
-        builder: (controller) {
+    final ValueNotifier<bool> getCodeStatus = ValueNotifier(false);
+    return ControllerBuilder(
+        create: () => ChangePasswordController(),
+        builder: (context, controller) {
           return Scaffold(
             extendBody: true,
             key: const PageStorageKey<String>('change_password'),
@@ -45,115 +46,125 @@ class ChangePasswordPage extends StatelessWidget {
                             if (value == null || value.isEmpty) {
                               return '请输入邮箱地址';
                             }
-                            if (!value.isEmail) {
+                            if (!RegExp(r'^[\w.+-]+@[\w-]+(\.[\w-]+)+$')
+                                .hasMatch(value)) {
                               return '邮箱地址格式错误';
                             }
                             return null;
                           },
                           onChanged: (value) {
-                            controller.email(value);
-                            if (value.isEmail) {
-                              getCodeStatus(true);
+                            controller.email.value = (value);
+                            if (RegExp(r'^[\w.+-]+@[\w-]+(\.[\w-]+)+$')
+                                .hasMatch(value)) {
+                              getCodeStatus.value = (true);
                             } else {
-                              getCodeStatus(false);
+                              getCodeStatus.value = (false);
                             }
                           },
                           decoration: InputDecoration(
                               labelText: '邮箱地址',
                               hintText: '请输入邮箱地址',
                               isCollapsed: false,
-                              suffix: Obx(() => Visibility(
-                                    visible: getCodeStatus.value,
-                                    child: TextButton(
-                                        onPressed: () async {
-                                          getCodeStatus(false);
-                                          final isSuccess =
-                                              await controller.getCode();
-                                          getCodeStatus(true);
-                                          if (isSuccess) {
-                                            // ignore: use_build_context_synchronously
-                                            ScaffoldMessenger.of(context)
-                                                .showSnackBar(const SnackBar(
-                                              behavior:
-                                                  SnackBarBehavior.floating,
-                                              margin: EdgeInsets.only(
-                                                  bottom: 10,
-                                                  left: 100,
-                                                  right: 100),
-                                              content: Text('验证码获取成功'),
-                                            ));
-                                          } else {
-                                            // ignore: use_build_context_synchronously
-                                            ScaffoldMessenger.of(context)
-                                                .showSnackBar(const SnackBar(
-                                              behavior:
-                                                  SnackBarBehavior.floating,
-                                              margin: EdgeInsets.only(
-                                                  bottom: 10,
-                                                  left: 100,
-                                                  right: 100),
-                                              content: Text('验证码获取失败，请重试'),
-                                            ));
-                                          }
-                                        },
-                                        style: ButtonStyle(
-                                          padding: WidgetStateProperty.all(
-                                              const EdgeInsets.all(0)),
-                                          overlayColor: WidgetStateProperty.all(
-                                              Colors.transparent),
-                                        ),
-                                        child: const Text('获取验证码')),
-                                  )),
+                              suffix: ListenableBuilder(
+                                  listenable: getCodeStatus,
+                                  builder: (context, _) => Visibility(
+                                        visible: getCodeStatus.value,
+                                        child: TextButton(
+                                            onPressed: () async {
+                                              getCodeStatus.value = (false);
+                                              final isSuccess =
+                                                  await controller.getCode();
+                                              getCodeStatus.value = (true);
+                                              if (isSuccess) {
+                                                // ignore: use_build_context_synchronously
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(
+                                                        const SnackBar(
+                                                  behavior:
+                                                      SnackBarBehavior.floating,
+                                                  margin: EdgeInsets.only(
+                                                      bottom: 10,
+                                                      left: 100,
+                                                      right: 100),
+                                                  content: Text('验证码获取成功'),
+                                                ));
+                                              } else {
+                                                // ignore: use_build_context_synchronously
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(
+                                                        const SnackBar(
+                                                  behavior:
+                                                      SnackBarBehavior.floating,
+                                                  margin: EdgeInsets.only(
+                                                      bottom: 10,
+                                                      left: 100,
+                                                      right: 100),
+                                                  content: Text('验证码获取失败，请重试'),
+                                                ));
+                                              }
+                                            },
+                                            style: ButtonStyle(
+                                              padding: WidgetStateProperty.all(
+                                                  const EdgeInsets.all(0)),
+                                              overlayColor:
+                                                  WidgetStateProperty.all(
+                                                      Colors.transparent),
+                                            ),
+                                            child: const Text('获取验证码')),
+                                      )),
                               contentPadding: const EdgeInsets.only(
                                   top: 0, bottom: 0, left: 0, right: 0)),
                         ),
                       ),
                     ),
-                    Obx(() => Visibility(
-                          visible: getCodeStatus.value,
-                          child: Column(
-                            children: [
-                              const SizedBox(
-                                height: 10,
-                              ),
-                              Form(
-                                key: codeKey,
-                                child: Focus(
-                                  onFocusChange: (value) {
-                                    if (!value) {
-                                      codeKey.currentState!.validate();
-                                    }
-                                  },
-                                  child: TextFormField(
-                                    initialValue: controller.code.value,
-                                    validator: (value) {
-                                      if (value == null || value.isEmpty) {
-                                        return '请输入验证码';
-                                      }
-                                      if (value.length != 6 ||
-                                          int.tryParse(value) == null) {
-                                        return '验证码格式错误';
-                                      }
-                                      return null;
-                                    },
-                                    onChanged: (value) {
-                                      controller.code(value);
-                                    },
-                                    decoration: const InputDecoration(
-                                        labelText: '验证码',
-                                        hintText: '请输入验证码',
-                                        isCollapsed: false,
-                                        contentPadding: EdgeInsets.only(
-                                            top: 0,
-                                            bottom: 0,
-                                            left: 0,
-                                            right: 0)),
+                    ListenableBuilder(
+                        listenable:
+                            Listenable.merge([controller.code, getCodeStatus]),
+                        builder: (context, _) => Visibility(
+                              visible: getCodeStatus.value,
+                              child: Column(
+                                children: [
+                                  const SizedBox(
+                                    height: 10,
                                   ),
-                                ),
+                                  Form(
+                                    key: codeKey,
+                                    child: Focus(
+                                      onFocusChange: (value) {
+                                        if (!value) {
+                                          codeKey.currentState!.validate();
+                                        }
+                                      },
+                                      child: TextFormField(
+                                        initialValue: controller.code.value,
+                                        validator: (value) {
+                                          if (value == null || value.isEmpty) {
+                                            return '请输入验证码';
+                                          }
+                                          if (value.length != 6 ||
+                                              int.tryParse(value) == null) {
+                                            return '验证码格式错误';
+                                          }
+                                          return null;
+                                        },
+                                        onChanged: (value) {
+                                          controller.code.value = (value);
+                                        },
+                                        decoration: const InputDecoration(
+                                            labelText: '验证码',
+                                            hintText: '请输入验证码',
+                                            isCollapsed: false,
+                                            contentPadding: EdgeInsets.only(
+                                                top: 0,
+                                                bottom: 0,
+                                                left: 0,
+                                                right: 0)),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                        )),
+                            )),
                     const SizedBox(
                       height: 10,
                     ),
@@ -179,7 +190,7 @@ class ChangePasswordPage extends StatelessWidget {
                             return null;
                           },
                           onChanged: (value) {
-                            controller.password(value);
+                            controller.password.value = (value);
                           },
                           obscureText: true,
                           decoration: const InputDecoration(
@@ -214,8 +225,8 @@ class ChangePasswordPage extends StatelessWidget {
                                     bottom: 10, left: 100, right: 100),
                                 content: Text('密码修改成功'),
                               ));
-                              // Get.back();
-                              Get.offAndToNamed('/profile');
+                              // appPop();
+                              appPushReplacementNamed('/profile');
                             } else {
                               // ignore: use_build_context_synchronously
                               ScaffoldMessenger.of(context)
@@ -240,7 +251,7 @@ class ChangePasswordPage extends StatelessWidget {
                           children: [
                             TextButton(
                                 onPressed: () {
-                                  Get.offAndToNamed('/login');
+                                  appPushReplacementNamed('/login');
                                 },
                                 style: ButtonStyle(
                                   padding: WidgetStateProperty.all(
@@ -258,9 +269,7 @@ class ChangePasswordPage extends StatelessWidget {
             bottomNavigationBar: NavBar(
               children: [
                 NavItem(
-                    icon: Icons.arrow_back,
-                    title: '返回',
-                    onTap: () => Get.back()),
+                    icon: Icons.arrow_back, title: '返回', onTap: () => appPop()),
               ],
             ),
           );

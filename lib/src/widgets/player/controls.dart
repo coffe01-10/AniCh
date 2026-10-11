@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:get/get.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:xs/src/apis/bangumi.dart';
+import 'package:xs/src/app/navigator_key.dart';
 import 'package:xs/src/pages/bangumi_vod/controller.dart';
 import 'package:xs/src/utils/app_style.dart';
 import 'package:xs/src/utils/color.dart';
@@ -42,19 +42,22 @@ Widget playerControls(
   VideoState videoState,
   BangumiVodPageController controller,
 ) {
-  return Obx(() {
-    if (controller.fullScreenState.value) {
-      return buildFullControls(
+  return ValueListenableBuilder<bool>(
+    valueListenable: controller.fullScreenState,
+    builder: (context, fullScreen, _) {
+      if (fullScreen) {
+        return buildFullControls(
+          videoState,
+          controller,
+        );
+      }
+      return buildControls(
+        MediaQuery.orientationOf(videoState.context) == Orientation.portrait,
         videoState,
         controller,
       );
-    }
-    return buildControls(
-      videoState.context.orientation == Orientation.portrait,
-      videoState,
-      controller,
-    );
-  });
+    },
+  );
 }
 
 Widget buildFullControls(
@@ -65,7 +68,7 @@ Widget buildFullControls(
   final width = MediaQuery.of(videoState.context).size.width;
   GlobalKey volumeButtonkey = GlobalKey();
   return CustomDragToMoveArea(
-    drag: controller.smallWindowState.isTrue ? true : false,
+    drag: controller.smallWindowState.value,
     child: Stack(
       children: [
         Container(),
@@ -116,8 +119,9 @@ Widget buildFullControls(
         ),
         buildDanmuView(videoState, controller),
         // 顶部
-        Obx(
-          () => AnimatedPositioned(
+        ListenableBuilder(
+          listenable: controller.pageListenable,
+          builder: (context, _) => AnimatedPositioned(
             left: 0,
             right: 0,
             top: (controller.showControlsState.value &&
@@ -167,7 +171,7 @@ Widget buildFullControls(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${controller.data.title}',
+                          controller.data?.title ?? '',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
@@ -223,8 +227,9 @@ Widget buildFullControls(
           ),
         ),
         // 底部
-        Obx(
-          () => AnimatedPositioned(
+        ListenableBuilder(
+          listenable: controller.pageListenable,
+          builder: (context, _) => AnimatedPositioned(
             left: 0,
             right: 0,
             bottom: (controller.showControlsState.value &&
@@ -271,10 +276,7 @@ Widget buildFullControls(
                       const MaterialPlayOrPauseButton(),
                       IconButton(
                         onPressed: () {
-                          controller.rxEpisode(controller.episode + 1);
-                          controller.player.stop();
-                          controller.danmakuController?.clear();
-                          controller.get();
+                          controller.setEpisode(controller.episode + 1);
                         },
                         icon: const Icon(
                           Icons.skip_next,
@@ -380,35 +382,31 @@ Widget buildFullControls(
         ),
 
         // 右侧锁定
-        Obx(
-          () => AnimatedPositioned(
+        ValueListenableBuilder<bool>(
+          valueListenable: controller.showControlsState,
+          builder: (context, showControls, _) => AnimatedPositioned(
             top: 0,
             bottom: 0,
-            right:
-                controller.showControlsState.value ? 12 : -(64 + padding.right),
-            // right: controller.showControlsState.value
-            //     ? padding.right + 12
-            //     : -(64 + padding.right),
+            right: showControls ? 12 : -(64 + padding.right),
             duration: const Duration(milliseconds: 200),
             child: buildLockButton(controller),
           ),
         ),
         // 左侧锁定
-        Obx(
-          () => AnimatedPositioned(
+        ValueListenableBuilder<bool>(
+          valueListenable: controller.showControlsState,
+          builder: (context, showControls, _) => AnimatedPositioned(
             top: 0,
             bottom: 0,
-            left:
-                controller.showControlsState.value ? 12 : -(64 + padding.left),
-            // left: controller.showControlsState.value
-            //     ? padding.left + 12
-            //     : -(64 + padding.right),
+            left: showControls ? 12 : -(64 + padding.left),
             duration: const Duration(milliseconds: 200),
             child: buildLockButton(controller),
           ),
         ),
-        Obx(
-          () => Offstage(
+        ListenableBuilder(
+          listenable: Listenable.merge(
+              [controller.showGestureTip, controller.gestureTipText]),
+          builder: (context, _) => Offstage(
             offstage: !controller.showGestureTip.value,
             child: Center(
               child: Container(
@@ -426,14 +424,15 @@ Widget buildFullControls(
           ),
         ),
         // 弹幕发送框
-        Obx(
-          () => AnimatedPositioned(
+        ValueListenableBuilder<bool>(
+          valueListenable: controller.showDanmakuTextField,
+          builder: (context, showTextField, _) => AnimatedPositioned(
             left: 0,
             right: 0,
             bottom: 0,
             duration: const Duration(milliseconds: 200),
             child: Offstage(
-              offstage: !controller.showDanmakuTextField.value,
+              offstage: !showTextField,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.start,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -442,7 +441,7 @@ Widget buildFullControls(
                     behavior: HitTestBehavior.opaque,
                     onTap: () {
                       controller.danmakuTextFieldFocusNode.unfocus();
-                      controller.showDanmakuTextField(false);
+                      controller.showDanmakuTextField.value = false;
                       controller.player.play();
                     },
                     child: Container(
@@ -483,12 +482,13 @@ Widget buildLockButton(BangumiVodPageController controller) {
         width: 40,
         height: 40,
         child: Center(
-          child: Icon(
-            controller.lockControlsState.value
-                ? Icons.lock_outline_rounded
-                : Icons.lock_open_outlined,
-            color: Colors.white,
-            size: 20,
+          child: ValueListenableBuilder<bool>(
+            valueListenable: controller.lockControlsState,
+            builder: (context, locked, _) => Icon(
+              locked ? Icons.lock_outline_rounded : Icons.lock_open_outlined,
+              color: Colors.white,
+              size: 20,
+            ),
           ),
         ),
       ),
@@ -550,8 +550,9 @@ Widget buildControls(
         ),
         buildDanmuView(videoState, controller),
         // 顶部
-        Obx(
-          () => AnimatedPositioned(
+        ListenableBuilder(
+          listenable: controller.pageListenable,
+          builder: (context, _) => AnimatedPositioned(
             left: 0,
             right: 0,
             top: (controller.showControlsState.value &&
@@ -585,7 +586,7 @@ Widget buildControls(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${controller.data.title}',
+                          controller.data?.title ?? '',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
@@ -654,8 +655,9 @@ Widget buildControls(
           ),
         ),
         // 底部
-        Obx(
-          () => AnimatedPositioned(
+        ListenableBuilder(
+          listenable: controller.pageListenable,
+          builder: (context, _) => AnimatedPositioned(
             left: 0,
             right: 0,
             bottom: controller.showControlsState.value ? 0 : -75,
@@ -691,10 +693,7 @@ Widget buildControls(
                       const MaterialPlayOrPauseButton(),
                       IconButton(
                         onPressed: () {
-                          controller.rxEpisode(controller.episode + 1);
-                          controller.player.stop();
-                          controller.danmakuController?.clear();
-                          controller.get();
+                          controller.setEpisode(controller.episode + 1);
                         },
                         icon: const Icon(
                           Icons.skip_next,
@@ -777,8 +776,10 @@ Widget buildControls(
             ),
           ),
         ),
-        Obx(
-          () => Offstage(
+        ListenableBuilder(
+          listenable: Listenable.merge(
+              [controller.showGestureTip, controller.gestureTipText]),
+          builder: (context, _) => Offstage(
             offstage: !controller.showGestureTip.value,
             child: Center(
               child: Container(
@@ -796,14 +797,15 @@ Widget buildControls(
           ),
         ),
         // 弹幕发送框
-        Obx(
-          () => AnimatedPositioned(
+        ValueListenableBuilder<bool>(
+          valueListenable: controller.showDanmakuTextField,
+          builder: (context, showTextField, _) => AnimatedPositioned(
             left: 0,
             right: 0,
             bottom: 0,
             duration: const Duration(milliseconds: 200),
             child: Offstage(
-              offstage: !controller.showDanmakuTextField.value,
+              offstage: !showTextField,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.start,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -812,7 +814,7 @@ Widget buildControls(
                     behavior: HitTestBehavior.opaque,
                     onTap: () {
                       controller.danmakuTextFieldFocusNode.unfocus();
-                      controller.showDanmakuTextField(false);
+                      controller.showDanmakuTextField.value = false;
                       controller.player.play();
                     },
                     child: Container(
@@ -850,8 +852,10 @@ Widget buildDanmuView(
   return Positioned.fill(
     top: padding.top,
     bottom: padding.bottom,
-    child: Obx(
-      () => Offstage(
+    child: ListenableBuilder(
+      listenable: Listenable.merge(
+          [controller.showDanmakuState, controller.fullScreenState]),
+      builder: (context, _) => Offstage(
         offstage: !controller.showDanmakuState.value,
         child: Padding(
           padding: controller.fullScreenState.value
@@ -888,8 +892,8 @@ Widget buildSendDanmakuButton(
             if (controller.player.state.playing) {
               controller.player.pause();
             }
-            controller.showControlsState(false);
-            controller.showDanmakuTextField(true);
+            controller.showControlsState.value = false;
+            controller.showDanmakuTextField.value = true;
           },
           child: Row(
             children: [
@@ -963,9 +967,9 @@ Widget buildSendDanmakuTextField(BangumiVodPageController controller) {
           time: time,
           type: DanmakuItemType.values[controller.danmakuTypeIndex.value - 1]),
     ]);
-    controller.danmakuText('');
+    controller.danmakuText.value = '';
     controller.textEditingController.clear();
-    controller.showDanmakuTextField(false);
+    controller.showDanmakuTextField.value = false;
     controller.player.play();
     try {
       await BangumiApi.postDanmaku(
@@ -980,75 +984,81 @@ Widget buildSendDanmakuTextField(BangumiVodPageController controller) {
     }
   }
 
-  return Obx(() {
-    return Column(
-      children: [
-        Offstage(
-          offstage: !controller.textFormatStatus.value,
-          child: Container(
-            width: double.infinity,
-            constraints: const BoxConstraints(minHeight: 100),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 10),
-                Text('弹幕位置',
-                    style: TextStyle(
-                        color: Colors.white.withAlpha(200), fontSize: 11)),
-                const SizedBox(height: 2),
-                Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: typeList.entries.map((e) {
-                      return GestureDetector(
-                          onTap: () {
-                            controller.danmakuTypeIndex(e.key);
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: BoxDecoration(
-                              border: controller.danmakuTypeIndex.value == e.key
-                                  ? Border.all(color: Colors.white, width: 1)
-                                  : null,
-                              borderRadius: BorderRadius.circular(5),
-                            ),
-                            child: Text(
-                              e.value,
-                              style: const TextStyle(color: Colors.white),
-                            ),
-                          ));
-                    }).toList()),
-                const SizedBox(height: 5),
-                Text(
-                  '弹幕颜色',
-                  style: TextStyle(
-                      color: Colors.white.withAlpha(200), fontSize: 11),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(top: 5),
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: colors
-                        .map(
-                          (e) => GestureDetector(
+  return ListenableBuilder(
+    listenable: Listenable.merge([
+      controller.textFormatStatus,
+      controller.danmakuTypeIndex,
+      controller.danmakuColor,
+    ]),
+    builder: (context, _) {
+      return Column(
+        children: [
+          Offstage(
+            offstage: !controller.textFormatStatus.value,
+            child: Container(
+              width: double.infinity,
+              constraints: const BoxConstraints(minHeight: 100),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 10),
+                  Text('弹幕位置',
+                      style: TextStyle(
+                          color: Colors.white.withAlpha(200), fontSize: 11)),
+                  const SizedBox(height: 2),
+                  Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: typeList.entries.map((e) {
+                        return GestureDetector(
                             onTap: () {
-                              controller.danmakuColor(e);
+                              controller.danmakuTypeIndex.value = e.key;
                             },
                             child: Container(
-                              width: 20,
-                              height: 20,
+                              padding: const EdgeInsets.all(2),
                               decoration: BoxDecoration(
-                                color: ColorUtil.fromHex(e),
-                                borderRadius: AppStyle.radius4,
-                                border: Border.all(
-                                  color: Colors.grey.withOpacity(.2),
-                                  width: 1,
-                                ),
+                                border: controller.danmakuTypeIndex.value ==
+                                        e.key
+                                    ? Border.all(color: Colors.white, width: 1)
+                                    : null,
+                                borderRadius: BorderRadius.circular(5),
                               ),
-                              child: Obx(
-                                () => Center(
+                              child: Text(
+                                e.value,
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                            ));
+                      }).toList()),
+                  const SizedBox(height: 5),
+                  Text(
+                    '弹幕颜色',
+                    style: TextStyle(
+                        color: Colors.white.withAlpha(200), fontSize: 11),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 5),
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: colors
+                          .map(
+                            (e) => GestureDetector(
+                              onTap: () {
+                                controller.danmakuColor.value = e;
+                              },
+                              child: Container(
+                                width: 20,
+                                height: 20,
+                                decoration: BoxDecoration(
+                                  color: ColorUtil.fromHex(e),
+                                  borderRadius: AppStyle.radius4,
+                                  border: Border.all(
+                                    color: Colors.grey.withOpacity(.2),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Center(
                                   child: Icon(
                                     Icons.check,
                                     size: 12,
@@ -1059,94 +1069,94 @@ Widget buildSendDanmakuTextField(BangumiVodPageController controller) {
                                 ),
                               ),
                             ),
-                          ),
-                        )
-                        .toList(),
-                  ),
-                )
-              ],
+                          )
+                          .toList(),
+                    ),
+                  )
+                ],
+              ),
             ),
           ),
-        ),
-        Row(
-          children: [
-            controller.textFormatStatus.value
-                ? IconButton(
-                    onPressed: () {
-                      controller.textFormatStatus(false);
-                    },
-                    icon: const Icon(
-                      Icons.arrow_drop_down,
-                      size: 26,
-                      color: Colors.white,
-                    ))
-                : IconButton(
-                    onPressed: () {
-                      controller.textFormatStatus(true);
-                    },
-                    icon: const Icon(
-                      Icons.arrow_drop_up,
-                      size: 26,
-                      color: Colors.white,
-                    )),
-            const SizedBox(width: 5),
-            Expanded(
-              child: Container(
-                margin: const EdgeInsets.only(top: 10, bottom: 10),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    height: 35,
-                    padding: const EdgeInsets.only(left: 10, right: 10),
-                    color: Colors.white.withAlpha(50),
-                    child: TextField(
-                      // autofocus: true,
-                      focusNode: controller.danmakuTextFieldFocusNode,
-                      controller: controller.textEditingController,
-                      // textAlignVertical: TextAlignVertical.top,
-                      textAlignVertical: TextAlignVertical.center,
-                      textInputAction: TextInputAction.send,
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          textBaseline: TextBaseline.alphabetic),
-                      onChanged: (value) {
-                        controller.danmakuText(value);
+          Row(
+            children: [
+              controller.textFormatStatus.value
+                  ? IconButton(
+                      onPressed: () {
+                        controller.textFormatStatus.value = false;
                       },
-                      decoration: InputDecoration(
-                        isDense: true,
-                        hintText: '发送弹幕',
-                        hintStyle: const TextStyle(
+                      icon: const Icon(
+                        Icons.arrow_drop_down,
+                        size: 26,
+                        color: Colors.white,
+                      ))
+                  : IconButton(
+                      onPressed: () {
+                        controller.textFormatStatus.value = true;
+                      },
+                      icon: const Icon(
+                        Icons.arrow_drop_up,
+                        size: 26,
+                        color: Colors.white,
+                      )),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Container(
+                  margin: const EdgeInsets.only(top: 10, bottom: 10),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      height: 35,
+                      padding: const EdgeInsets.only(left: 10, right: 10),
+                      color: Colors.white.withAlpha(50),
+                      child: TextField(
+                        // autofocus: true,
+                        focusNode: controller.danmakuTextFieldFocusNode,
+                        controller: controller.textEditingController,
+                        // textAlignVertical: TextAlignVertical.top,
+                        textAlignVertical: TextAlignVertical.center,
+                        textInputAction: TextInputAction.send,
+                        style: const TextStyle(
                             color: Colors.white,
                             fontSize: 14,
                             textBaseline: TextBaseline.alphabetic),
-                        border: InputBorder.none,
-                        // contentPadding: const EdgeInsets.only(top: 2),
-                        contentPadding: EdgeInsets.zero,
-                        suffixIcon: IconButton(
-                          icon: const Icon(
-                            Icons.send,
-                            size: 17,
-                            color: Colors.white,
+                        onChanged: (value) {
+                          controller.danmakuText.value = value;
+                        },
+                        decoration: InputDecoration(
+                          isDense: true,
+                          hintText: '发送弹幕',
+                          hintStyle: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              textBaseline: TextBaseline.alphabetic),
+                          border: InputBorder.none,
+                          // contentPadding: const EdgeInsets.only(top: 2),
+                          contentPadding: EdgeInsets.zero,
+                          suffixIcon: IconButton(
+                            icon: const Icon(
+                              Icons.send,
+                              size: 17,
+                              color: Colors.white,
+                            ),
+                            onPressed: () async {
+                              postDanmaku();
+                            },
                           ),
-                          onPressed: () async {
-                            postDanmaku();
-                          },
                         ),
+                        onSubmitted: (String value) {
+                          postDanmaku();
+                        },
                       ),
-                      onSubmitted: (String value) {
-                        postDanmaku();
-                      },
                     ),
                   ),
                 ),
-              ),
-            )
-          ],
-        )
-      ],
-    );
-  });
+              )
+            ],
+          )
+        ],
+      );
+    },
+  );
 }
 
 void showLinesInfo(BangumiVodPageController controller) {
@@ -1157,29 +1167,32 @@ void showLinesInfo(BangumiVodPageController controller) {
   Utils.showRightDialog(
     title: '切换线路',
     useSystem: true,
-    child: ListView.builder(
-      padding: EdgeInsets.zero,
-      itemCount: controller.playUrls.length,
-      itemBuilder: (_, i) {
-        return Material(
-          child: InkWell(
-            onTap: () {},
-            child: RadioListTile(
-              value: i,
-              groupValue: controller.currentLineIndex,
-              title: Text('线路${i + 1}'),
-              subtitle: Text(controller.urlDecode(controller.playUrls[i].url)),
-              secondary: Text(
-                controller.playUrls[i].caption,
+    child: ValueListenableBuilder<List>(
+      valueListenable: controller.playUrls,
+      builder: (context, urls, _) => ListView.builder(
+        padding: EdgeInsets.zero,
+        itemCount: urls.length,
+        itemBuilder: (_, i) {
+          return Material(
+            child: InkWell(
+              onTap: () {},
+              child: RadioListTile(
+                value: i,
+                groupValue: controller.currentLineIndex,
+                title: Text('线路${i + 1}'),
+                subtitle: Text(controller.urlDecode(urls[i].url)),
+                secondary: Text(
+                  urls[i].caption,
+                ),
+                onChanged: (e) {
+                  Utils.hideRightDialog();
+                  controller.changePlayLine(i);
+                },
               ),
-              onChanged: (e) {
-                Utils.hideRightDialog();
-                controller.changePlayLine(i);
-              },
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     ),
   );
 }
@@ -1223,62 +1236,22 @@ void showPlayerSettings(BangumiVodPageController controller) {
             padding: AppStyle.edgeInsetsA12.copyWith(top: 0),
             child: Text(
               '画面尺寸',
-              style: Get.textTheme.titleSmall,
+              style: Theme.of(appContext).textTheme.titleSmall,
             ),
           ),
           SettingsCard(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Obx(
-                  () => SettingsSwitch(
-                    title: '适应',
-                    value: controller.scaleMode.value == 0,
-                    onChanged: (e) {
-                      controller.updateScaleMode(0);
-                    },
-                  ),
-                ),
+                _scaleModeItem(controller, '适应', 0),
                 AppStyle.divider,
-                Obx(
-                  () => SettingsSwitch(
-                    title: '拉伸',
-                    value: controller.scaleMode.value == 1,
-                    onChanged: (e) {
-                      controller.updateScaleMode(1);
-                    },
-                  ),
-                ),
+                _scaleModeItem(controller, '拉伸', 1),
                 AppStyle.divider,
-                Obx(
-                  () => SettingsSwitch(
-                    title: '铺满',
-                    value: controller.scaleMode.value == 2,
-                    onChanged: (e) {
-                      controller.updateScaleMode(2);
-                    },
-                  ),
-                ),
+                _scaleModeItem(controller, '铺满', 2),
                 AppStyle.divider,
-                Obx(
-                  () => SettingsSwitch(
-                    title: '16:9',
-                    value: controller.scaleMode.value == 3,
-                    onChanged: (e) {
-                      controller.updateScaleMode(3);
-                    },
-                  ),
-                ),
+                _scaleModeItem(controller, '16:9', 3),
                 AppStyle.divider,
-                Obx(
-                  () => SettingsSwitch(
-                    title: '4:3',
-                    value: controller.scaleMode.value == 4,
-                    onChanged: (e) {
-                      controller.updateScaleMode(4);
-                    },
-                  ),
-                ),
+                _scaleModeItem(controller, '4:3', 4),
               ],
             ),
           ),
@@ -1286,32 +1259,47 @@ void showPlayerSettings(BangumiVodPageController controller) {
             padding: AppStyle.edgeInsetsA12.copyWith(top: 12),
             child: Text(
               '播放速度',
-              style: Get.textTheme.titleSmall,
+              style: Theme.of(appContext).textTheme.titleSmall,
             ),
           ),
           SettingsCard(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: controller.speedsList.map((rate) {
-                return Obx(
-                  () => Column(
-                    children: [
-                      SettingsSwitch(
+                return Column(
+                  children: [
+                    ValueListenableBuilder<double>(
+                      valueListenable: controller.playerSpeed,
+                      builder: (context, value, _) => SettingsSwitch(
                         title: '${rate}X',
-                        value: controller.playerSpeed.value == rate,
+                        value: value == rate,
                         onChanged: (e) {
                           controller.setPlaybackSpeed(rate);
                         },
                       ),
-                      AppStyle.divider
-                    ],
-                  ),
+                    ),
+                    AppStyle.divider
+                  ],
                 );
               }).toList(),
             ),
           ),
         ],
       ),
+    ),
+  );
+}
+
+Widget _scaleModeItem(
+    BangumiVodPageController controller, String title, int mode) {
+  return ValueListenableBuilder<int>(
+    valueListenable: controller.scaleMode,
+    builder: (context, value, _) => SettingsSwitch(
+      title: title,
+      value: value == mode,
+      onChanged: (e) {
+        controller.updateScaleMode(mode);
+      },
     ),
   );
 }

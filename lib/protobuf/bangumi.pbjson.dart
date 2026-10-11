@@ -33,7 +33,14 @@ final $typed_data.Uint8List vod_item_Descriptor = $convert.base64Decode(
 const vod_$json = {
   '1': '_vod',
   '2': [
-    {'1': 'data', '3': 1, '4': 3, '5': 11, '6': '.bangumi._vod_item', '10': 'data'},
+    {
+      '1': 'data',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.bangumi._vod_item',
+      '10': 'data'
+    },
   ],
 };
 
@@ -67,7 +74,14 @@ final $typed_data.Uint8List bangumi_list_item_Descriptor = $convert.base64Decode
 const bangumi_list_$json = {
   '1': '_bangumi_list',
   '2': [
-    {'1': 'data', '3': 1, '4': 3, '5': 11, '6': '.bangumi._bangumi_list_item', '10': 'data'},
+    {
+      '1': 'data',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.bangumi._bangumi_list_item',
+      '10': 'data'
+    },
     {'1': 'prev', '3': 2, '4': 1, '5': 13, '10': 'prev'},
     {'1': 'next', '3': 3, '4': 1, '5': 13, '10': 'next'},
   ],
@@ -104,7 +118,14 @@ final $typed_data.Uint8List bangumi_latest_item_Descriptor = $convert.base64Deco
 const bangumi_latest_$json = {
   '1': '_bangumi_latest',
   '2': [
-    {'1': 'data', '3': 1, '4': 3, '5': 11, '6': '.bangumi._bangumi_latest_item', '10': 'data'},
+    {
+      '1': 'data',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.bangumi._bangumi_latest_item',
+      '10': 'data'
+    },
   ],
 };
 
@@ -123,9 +144,10 @@ const bangumi_episodes_sites_$json = {
 };
 
 /// Descriptor for `_bangumi_episodes_sites`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List bangumi_episodes_sites_Descriptor = $convert.base64Decode(
-    'ChdfYmFuZ3VtaV9lcGlzb2Rlc19zaXRlcxISCgRzaXRlGAEgASgJUgRzaXRlEg4KAmlkGAIgAS'
-    'gJUgJpZA==');
+final $typed_data.Uint8List bangumi_episodes_sites_Descriptor =
+    $convert.base64Decode(
+        'ChdfYmFuZ3VtaV9lcGlzb2Rlc19zaXRlcxISCgRzaXRlGAEgASgJUgRzaXRlEg4KAmlkGAIgAS'
+        'gJUgJpZA==');
 
 @$core.Deprecated('Use bangumi_episodes_rating_Descriptor instead')
 const bangumi_episodes_rating_$json = {
@@ -138,9 +160,10 @@ const bangumi_episodes_rating_$json = {
 };
 
 /// Descriptor for `_bangumi_episodes_rating`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List bangumi_episodes_rating_Descriptor = $convert.base64Decode(
-    'ChhfYmFuZ3VtaV9lcGlzb2Rlc19yYXRpbmcSEgoEc2l0ZRgBIAEoCVIEc2l0ZRIUCgVzY29yZR'
-    'gCIAEoDVIFc2NvcmUSFAoFY291bnQYAyABKA1SBWNvdW50');
+final $typed_data.Uint8List bangumi_episodes_rating_Descriptor =
+    $convert.base64Decode(
+        'ChhfYmFuZ3VtaV9lcGlzb2Rlc19yYXRpbmcSEgoEc2l0ZRgBIAEoCVIEc2l0ZRIUCgVzY29yZR'
+        'gCIAEoDVIFc2NvcmUSFAoFY291bnQYAyABKA1SBWNvdW50');
 
 @$core.Deprecated('Use bangumi_episodes_data_Descriptor instead')
 const bangumi_episodes_data_$json = {
@@ -150,8 +173,22 @@ const bangumi_episodes_data_$json = {
     {'1': 'sort', '3': 2, '4': 1, '5': 13, '10': 'sort'},
     {'1': 'airdate', '3': 3, '4': 1, '5': 1, '10': 'airdate'},
     {'1': 'duration', '3': 4, '4': 1, '5': 13, '10': 'duration'},
-    {'1': 'sites', '3': 5, '4': 3, '5': 11, '6': '.bangumi._bangumi_episodes_sites', '10': 'sites'},
-    {'1': 'rating', '3': 6, '4': 3, '5': 11, '6': '.bangumi._bangumi_episodes_rating', '10': 'rating'},
+    {
+      '1': 'sites',
+      '3': 5,
+      '4': 3,
+      '5': 11,
+      '6': '.bangumi._bangumi_episodes_sites',
+      '10': 'sites'
+    },
+    {
+      '1': 'rating',
+      '3': 6,
+      '4': 3,
+      '5': 11,
+      '6': '.bangumi._bangumi_episodes_rating',
+      '10': 'rating'
+    },
     {'1': 'image', '3': 7, '4': 1, '5': 9, '10': 'image'},
     {'1': 'title', '3': 8, '4': 1, '5': 9, '10': 'title'},
     {'1': 'overview', '3': 9, '4': 1, '5': 9, '10': 'overview'},
@@ -171,7 +208,14 @@ final $typed_data.Uint8List bangumi_episodes_data_Descriptor = $convert.base64De
 const bangumi_episodes_$json = {
   '1': '_bangumi_episodes',
   '2': [
-    {'1': 'data', '3': 1, '4': 3, '5': 11, '6': '.bangumi._bangumi_episodes_data', '10': 'data'},
+    {
+      '1': 'data',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.bangumi._bangumi_episodes_data',
+      '10': 'data'
+    },
   ],
 };
 
@@ -191,9 +235,10 @@ const bangumi_characters_actors_$json = {
 };
 
 /// Descriptor for `_bangumi_characters_actors`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List bangumi_characters_actors_Descriptor = $convert.base64Decode(
-    'ChpfYmFuZ3VtaV9jaGFyYWN0ZXJzX2FjdG9ycxIOCgJpZBgBIAEoDVICaWQSEgoEbmFtZRgCIA'
-    'EoCVIEbmFtZRIUCgVpbWFnZRgDIAEoCVIFaW1hZ2U=');
+final $typed_data.Uint8List bangumi_characters_actors_Descriptor =
+    $convert.base64Decode(
+        'ChpfYmFuZ3VtaV9jaGFyYWN0ZXJzX2FjdG9ycxIOCgJpZBgBIAEoDVICaWQSEgoEbmFtZRgCIA'
+        'EoCVIEbmFtZRIUCgVpbWFnZRgDIAEoCVIFaW1hZ2U=');
 
 @$core.Deprecated('Use bangumi_characters_data_Descriptor instead')
 const bangumi_characters_data_$json = {
@@ -203,7 +248,14 @@ const bangumi_characters_data_$json = {
     {'1': 'role', '3': 2, '4': 1, '5': 9, '10': 'role'},
     {'1': 'name', '3': 3, '4': 1, '5': 9, '10': 'name'},
     {'1': 'image', '3': 4, '4': 1, '5': 9, '10': 'image'},
-    {'1': 'actors', '3': 5, '4': 3, '5': 11, '6': '.bangumi._bangumi_characters_actors', '10': 'actors'},
+    {
+      '1': 'actors',
+      '3': 5,
+      '4': 3,
+      '5': 11,
+      '6': '.bangumi._bangumi_characters_actors',
+      '10': 'actors'
+    },
   ],
 };
 
@@ -217,7 +269,14 @@ final $typed_data.Uint8List bangumi_characters_data_Descriptor = $convert.base64
 const bangumi_characters_$json = {
   '1': '_bangumi_characters',
   '2': [
-    {'1': 'data', '3': 1, '4': 3, '5': 11, '6': '.bangumi._bangumi_characters_data', '10': 'data'},
+    {
+      '1': 'data',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.bangumi._bangumi_characters_data',
+      '10': 'data'
+    },
   ],
 };
 
@@ -246,7 +305,14 @@ final $typed_data.Uint8List bangumi_persons_data_Descriptor = $convert.base64Dec
 const bangumi_persons_$json = {
   '1': '_bangumi_persons',
   '2': [
-    {'1': 'data', '3': 1, '4': 3, '5': 11, '6': '.bangumi._bangumi_persons_data', '10': 'data'},
+    {
+      '1': 'data',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.bangumi._bangumi_persons_data',
+      '10': 'data'
+    },
   ],
 };
 
@@ -284,7 +350,14 @@ final $typed_data.Uint8List bangumi_related_data_Descriptor = $convert.base64Dec
 const bangumi_related_$json = {
   '1': '_bangumi_related',
   '2': [
-    {'1': 'data', '3': 1, '4': 3, '5': 11, '6': '.bangumi._bangumi_related_data', '10': 'data'},
+    {
+      '1': 'data',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.bangumi._bangumi_related_data',
+      '10': 'data'
+    },
   ],
 };
 
@@ -292,4 +365,3 @@ const bangumi_related_$json = {
 final $typed_data.Uint8List bangumi_related_Descriptor = $convert.base64Decode(
     'ChBfYmFuZ3VtaV9yZWxhdGVkEjIKBGRhdGEYASADKAsyHi5iYW5ndW1pLl9iYW5ndW1pX3JlbG'
     'F0ZWRfZGF0YVIEZGF0YQ==');
-

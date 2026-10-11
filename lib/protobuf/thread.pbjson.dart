@@ -66,7 +66,14 @@ const thread_$json = {
     {'1': 'type', '3': 10, '4': 1, '5': 9, '10': 'type'},
     {'1': 'nsfw', '3': 11, '4': 1, '5': 8, '10': 'nsfw'},
     {'1': 'source', '3': 12, '4': 1, '5': 9, '10': 'source'},
-    {'1': 'images', '3': 13, '4': 3, '5': 11, '6': '.thread.Images', '10': 'images'},
+    {
+      '1': 'images',
+      '3': 13,
+      '4': 3,
+      '5': 11,
+      '6': '.thread.Images',
+      '10': 'images'
+    },
     {'1': 'tags', '3': 14, '4': 3, '5': 11, '6': '.thread.Tags', '10': 'tags'},
   ],
 };
@@ -80,4 +87,3 @@ final $typed_data.Uint8List thread_Descriptor = $convert.base64Decode(
     'dGVkGAkgASgBUgd1cGRhdGVkEhIKBHR5cGUYCiABKAlSBHR5cGUSEgoEbnNmdxgLIAEoCFIEbn'
     'NmdxIWCgZzb3VyY2UYDCABKAlSBnNvdXJjZRImCgZpbWFnZXMYDSADKAsyDi50aHJlYWQuSW1h'
     'Z2VzUgZpbWFnZXMSIAoEdGFncxgOIAMoCzIMLnRocmVhZC5UYWdzUgR0YWdz');
-

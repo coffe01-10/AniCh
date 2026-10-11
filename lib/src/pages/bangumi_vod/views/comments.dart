@@ -1,34 +1,89 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import 'package:xs/src/app/navigator_key.dart';
 import 'package:xs/src/pages/bangumi_vod/controller.dart';
 import 'package:xs/src/utils/app_style.dart';
-import 'package:xs/src/widgets/bangumi_vod_comment/comment_item.dart';
-import 'package:xs/src/widgets/bangumi_vod_comment/controller.dart';
+import 'package:xs/src/widgets/comments/comment_api.dart';
+import 'package:xs/src/widgets/comments/comment_controller.dart';
+import 'package:xs/src/widgets/comments/comment_item.dart';
 import 'package:xs/src/widgets/keepalive.dart';
 import 'package:xs/src/widgets/reply.dart';
 import 'package:xs/src/widgets/subordinate_scroll_controller.dart';
 
-class BangumiVodCommentsView extends StatelessWidget {
+/// 播放页评论标签页。
+///
+/// 数据源为 [CommentController] + [BangumiCommentApi]，
+/// 被评论对象 id 随选集变化（`番剧id|集数`），切集时重建。
+class BangumiVodCommentsView extends StatefulWidget {
   final BangumiVodPageController bangumiVodPageController;
   const BangumiVodCommentsView(
       {super.key, required this.bangumiVodPageController});
+
+  @override
+  State<BangumiVodCommentsView> createState() => _BangumiVodCommentsViewState();
+}
+
+class _BangumiVodCommentsViewState extends State<BangumiVodCommentsView> {
+  BangumiVodPageController get vodController => widget.bangumiVodPageController;
+
+  CommentController? _commentController;
+  String _commentId = '';
+
+  CommentController _ensureCommentController() {
+    final id = '${vodController.id}|${vodController.episode}';
+    if (_commentId != id || _commentController == null) {
+      _commentController?.dispose();
+      _commentId = id;
+      _commentController = CommentController(
+        id: id,
+        api: const BangumiCommentApi(),
+      )..load();
+    }
+    return _commentController!;
+  }
+
+  @override
+  void dispose() {
+    _commentController?.dispose();
+    super.dispose();
+  }
+
+  void _showReplySheet({String? parent, String? reply}) {
+    final controller = _commentController;
+    if (controller == null) return;
+    showModalBottomSheet(
+      context: appContext,
+      isScrollControlled: true,
+      builder: (context) => ReplyNewDialog(
+        id: _commentId,
+        parent: parent,
+        reply: reply,
+        sendFn: (json) {
+          appNavigator?.pop();
+          controller.sendComment(json);
+        },
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final parentController = PrimaryScrollController.of(context);
     final scrollController = SubordinateScrollController(parentController);
     return KeepAliveWrapper(
-      child: Obx(() {
-        final id =
-            '${bangumiVodPageController.id}|${bangumiVodPageController.episode}';
-        return GetBuilder(
-          id: id,
-          global: false,
-          init: CommentController(),
-          builder: (controller) {
-            controller.id(id);
-            controller.getComments(id);
-            return controller.obx((state) {
+      child: ListenableBuilder(
+        listenable: vodController.pageListenable,
+        builder: (context, _) {
+          final controller = _ensureCommentController();
+          final id = _commentId;
+          return ListenableBuilder(
+            listenable: controller,
+            builder: (context, _) {
+              if (controller.comments.isEmpty && controller.commentsLoading) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (controller.comments.isEmpty && controller.commentsError) {
+                return const Center(child: Text('加载失败'));
+              }
               return SafeArea(
                 top: true,
                 bottom: true,
@@ -44,7 +99,7 @@ class BangumiVodCommentsView extends StatelessWidget {
                           bool isTop = metrics.pixels == 0;
                           if (isTop) {
                           } else {
-                            if (controller.commentsLoading.isFalse) {
+                            if (!controller.commentsLoading) {
                               controller.getMoreComments(id);
                             }
                           }
@@ -55,13 +110,12 @@ class BangumiVodCommentsView extends StatelessWidget {
                         displacement: 20,
                         edgeOffset: 80,
                         onRefresh: () async {
-                          controller.getComments(id);
+                          await controller.getComments(id);
                         },
                         child: CustomScrollView(
-                          controller:
-                              bangumiVodPageController.tabIndex.value == 1
-                                  ? scrollController
-                                  : ScrollController(),
+                          controller: vodController.tabIndex.value == 1
+                              ? scrollController
+                              : ScrollController(),
                           slivers: [
                             SliverOverlapInjector(
                                 handle: NestedScrollView
@@ -75,33 +129,33 @@ class BangumiVodCommentsView extends StatelessWidget {
                                     Container(
                                       padding: const EdgeInsets.symmetric(
                                           vertical: 5, horizontal: 10),
-                                      child: Obx(() {
-                                        return Text(
-                                          '第${bangumiVodPageController.episode}集 评论区 (${controller.comments.length})',
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.bold),
-                                        );
-                                      }),
+                                      child: Text(
+                                        '第${vodController.episode}集 评论区 (${controller.comments.length})',
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold),
+                                      ),
                                     )
                                   ],
                                 ),
                               ),
                             ),
                             SliverToBoxAdapter(
-                              child: Obx(() {
-                                return ListView.builder(
-                                  primary: true,
-                                  shrinkWrap: true,
-                                  itemBuilder: (itemBuilder, index) {
-                                    Map comment = controller.comments[index];
-                                    return CommentItem(
-                                      comment,
-                                      controller: controller,
-                                      replyFn: () {
-                                        Get.bottomSheet(ReplyNewDialog(
+                              child: ListView.builder(
+                                primary: true,
+                                shrinkWrap: true,
+                                itemBuilder: (itemBuilder, index) {
+                                  Map comment = controller.comments[index];
+                                  return CommentItem(
+                                    comment,
+                                    controller: controller,
+                                    replyFn: () {
+                                      showModalBottomSheet(
+                                        context: appContext,
+                                        isScrollControlled: true,
+                                        builder: (context) => ReplyNewDialog(
                                           id: id,
                                           sendFn: (json) async {
-                                            Get.back();
+                                            appNavigator?.pop();
                                             final data =
                                                 await controller.replyComment(
                                                     json: json,
@@ -109,22 +163,22 @@ class BangumiVodCommentsView extends StatelessWidget {
                                                     reply: null);
                                             if (data.isNotEmpty) {
                                               comment['replies'].add(data);
-                                              controller.update();
+                                              controller.refresh();
                                             }
                                           },
-                                        ));
-                                      },
-                                      likeFn: (id) {
-                                        return controller.likeComment(id);
-                                      },
-                                      cancelLikeFn: (id) {
-                                        return controller.cancelLikeComment(id);
-                                      },
-                                    );
-                                  },
-                                  itemCount: controller.comments.length,
-                                );
-                              }),
+                                        ),
+                                      );
+                                    },
+                                    likeFn: (id) {
+                                      return controller.likeComment(id);
+                                    },
+                                    cancelLikeFn: (id) {
+                                      return controller.cancelLikeComment(id);
+                                    },
+                                  );
+                                },
+                                itemCount: controller.comments.length,
+                              ),
                             ),
                             const SliverPadding(
                               padding: EdgeInsets.only(bottom: 50),
@@ -152,13 +206,7 @@ class BangumiVodCommentsView extends StatelessWidget {
                                   child: Material(
                                     child: InkWell(
                                       onTap: () {
-                                        Get.bottomSheet(ReplyNewDialog(
-                                          id: id,
-                                          sendFn: (json) {
-                                            Get.back();
-                                            controller.sendComment(json);
-                                          },
-                                        ));
+                                        _showReplySheet();
                                       },
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(
@@ -187,10 +235,10 @@ class BangumiVodCommentsView extends StatelessWidget {
                   ],
                 ),
               );
-            });
-          },
-        );
-      }),
+            },
+          );
+        },
+      ),
     );
   }
 }

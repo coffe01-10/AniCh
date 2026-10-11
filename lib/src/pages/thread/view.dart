@@ -1,29 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:get/get.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:xs/src/pages/thread/controller.dart';
 import 'package:xs/src/widgets/drag_to_move_bar.dart';
 import 'package:xs/src/widgets/navbar.dart';
 import 'package:xs/src/utils/color.dart';
+import 'package:xs/src/app/routes.dart';
+import 'package:xs/src/widgets/controller_builder.dart';
+import 'package:xs/protobuf/list.pb.dart';
+import 'package:xs/src/app/navigator_key.dart';
 
 class ThreadPage extends StatelessWidget {
-  const ThreadPage({super.key});
+  const ThreadPage({super.key, required this.id, this.data});
+  final int id;
+  final thread_list_data_? data;
 
   @override
   Widget build(BuildContext context) {
     Brightness currentBrightness = MediaQuery.of(context).platformBrightness;
-    RxBool isLight = (currentBrightness == Brightness.light).obs;
-    // final data = Get.arguments;
-    final selectedIndex = 1.obs;
-    RxString color = '#ffffff'.obs;
-    RxString darkColor = '#000000'.obs;
-    return GetBuilder(
-      init: ThreadController(),
-      builder: (controller) {
+    final ValueNotifier<bool> isLight =
+        ValueNotifier((currentBrightness == Brightness.light));
+    // final data = data;
+    final selectedIndex = ValueNotifier(1);
+    final ValueNotifier<String> color = ValueNotifier('#ffffff');
+    final ValueNotifier<String> darkColor = ValueNotifier('#000000');
+    return ControllerBuilder(
+      create: () => ThreadController(id: id, preview: data),
+      builder: (context, controller) {
         return Material(
-          child: controller.obx((state) {
-            color(state?.images[selectedIndex.value - 1].color);
+          child: controller.obx((context, state) {
+            color.value = (state?.images[selectedIndex.value - 1].color ?? '');
             return AnnotatedRegion(
               value: SystemUiOverlayStyle(
                   statusBarIconBrightness:
@@ -42,16 +48,16 @@ class ThreadPage extends StatelessWidget {
                     scrollDirection: Axis.horizontal,
                     physics: const BouncingScrollPhysics(),
                     onPageChanged: (index) {
-                      selectedIndex(index + 1);
-                      if (isLight.isTrue) {
-                        color(state.images[index].color);
+                      selectedIndex.value = (index + 1);
+                      if (isLight.value) {
+                        color.value = (state.images[index].color);
                       } else {
-                        color(darkColor.value);
+                        color.value = (darkColor.value);
                       }
                     },
                     itemBuilder: (context, index) {
                       return Container(
-                        color: ColorUtil.fromHex(isLight.isTrue
+                        color: ColorUtil.fromHex(isLight.value
                             ? state.images[index].color
                             : darkColor.value),
                         child: Padding(
@@ -95,9 +101,10 @@ class ThreadPage extends StatelessWidget {
                             decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(15),
                                 color: Colors.black.withAlpha(120)),
-                            child: Obx(
-                              () => Text(
-                                '$selectedIndex/${state.images.length}',
+                            child: ListenableBuilder(
+                              listenable: selectedIndex,
+                              builder: (context, _) => Text(
+                                '$selectedIndex.value /${state.images.length}',
                                 style: const TextStyle(
                                     color: Colors.white, fontSize: 12),
                               ),
@@ -110,8 +117,9 @@ class ThreadPage extends StatelessWidget {
                             decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(15),
                                 color: Colors.black.withAlpha(120)),
-                            child: Obx(
-                              () => Text(
+                            child: ListenableBuilder(
+                              listenable: selectedIndex,
+                              builder: (context, _) => Text(
                                 '${state.images[selectedIndex.value - 1].width}x${state.images[selectedIndex.value - 1].height}',
                                 style: const TextStyle(
                                     color: Colors.white, fontSize: 12),
@@ -135,13 +143,16 @@ class ThreadPage extends StatelessWidget {
                                         horizontal: 10, vertical: 2),
                                     decoration: BoxDecoration(
                                         color: Colors.black.withAlpha(120)),
-                                    child: Obx(() {
-                                      return Text(
-                                        '查看原图 (${(state.images[selectedIndex.value - 1].originalSize / 1024 / 1024).toStringAsFixed(2)}MB)',
-                                        style: const TextStyle(
-                                            color: Colors.white, fontSize: 12),
-                                      );
-                                    }),
+                                    child: ListenableBuilder(
+                                        listenable: selectedIndex,
+                                        builder: (context, _) {
+                                          return Text(
+                                            '查看原图 (${(state.images[selectedIndex.value - 1].originalSize / 1024 / 1024).toStringAsFixed(2)}MB)',
+                                            style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 12),
+                                          );
+                                        }),
                                   ),
                                 ),
                               ),
@@ -150,47 +161,50 @@ class ThreadPage extends StatelessWidget {
                         ]),
                       ))
                 ]),
-                bottomNavigationBar: Obx(() {
-                  return NavBar(
-                    children: [
-                      NavItem(
-                          icon: Icons.arrow_back,
-                          title: '返回',
-                          onTap: () => Get.back()),
-                      controller.likeStatus.value
-                          ? NavItem(
-                              icon: Icons.thumb_up_alt,
-                              title: '取消点赞',
-                              onTap: () {
-                                controller.cancelLike();
-                              })
-                          : NavItem(
-                              icon: Icons.thumb_up_off_alt,
-                              title: '点赞',
-                              onTap: () {
-                                controller.like();
-                              }),
-                      controller.collectStatus.value
-                          ? NavItem(
-                              icon: Icons.favorite,
-                              title: '取消收藏',
-                              onTap: () {
-                                controller.cancelCollect();
-                              })
-                          : NavItem(
-                              icon: Icons.favorite_border,
-                              title: '收藏',
-                              onTap: () {
-                                controller.collect();
-                              }),
-                      NavItem(
-                          icon: Icons.article,
-                          title: '详情',
-                          onTap: () =>
-                              controller.showDetailSheet(context, controller)),
-                    ],
-                  );
-                }),
+                bottomNavigationBar: ListenableBuilder(
+                    listenable: Listenable.merge(
+                        [controller.collectStatus, controller.likeStatus]),
+                    builder: (context, _) {
+                      return NavBar(
+                        children: [
+                          NavItem(
+                              icon: Icons.arrow_back,
+                              title: '返回',
+                              onTap: () => appPop()),
+                          controller.likeStatus.value
+                              ? NavItem(
+                                  icon: Icons.thumb_up_alt,
+                                  title: '取消点赞',
+                                  onTap: () {
+                                    controller.cancelLike();
+                                  })
+                              : NavItem(
+                                  icon: Icons.thumb_up_off_alt,
+                                  title: '点赞',
+                                  onTap: () {
+                                    controller.like();
+                                  }),
+                          controller.collectStatus.value
+                              ? NavItem(
+                                  icon: Icons.favorite,
+                                  title: '取消收藏',
+                                  onTap: () {
+                                    controller.cancelCollect();
+                                  })
+                              : NavItem(
+                                  icon: Icons.favorite_border,
+                                  title: '收藏',
+                                  onTap: () {
+                                    controller.collect();
+                                  }),
+                          NavItem(
+                              icon: Icons.article,
+                              title: '详情',
+                              onTap: () => controller.showDetailSheet(
+                                  context, controller)),
+                        ],
+                      );
+                    }),
               ),
             );
           }),
@@ -200,13 +214,14 @@ class ThreadPage extends StatelessWidget {
   }
 
   void showOriginal(image) {
-    Get.dialog(
-      Stack(
+    showDialog(
+      context: appContext,
+      builder: (context) => Stack(
         children: [
           SizedBox(
             child: GestureDetector(
               onTap: () {
-                Get.back();
+                appPop();
               },
               child: PhotoView(
                   imageProvider: NetworkImage(image),

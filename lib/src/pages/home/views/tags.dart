@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:get/get.dart';
 import 'package:xs/src/pages/home/controller.dart';
 import 'package:xs/src/widgets/keepalive.dart';
 import 'package:xs/src/widgets/subordinate_scroll_controller.dart';
+import 'package:xs/src/app/routes.dart';
+import 'package:xs/src/widgets/controller_builder.dart';
 
 class HomeTagsView extends StatelessWidget {
   const HomeTagsView({super.key, this.active = false});
@@ -21,9 +22,9 @@ class HomeTagsView extends StatelessWidget {
           ? Brightness.dark
           : Brightness.light,
     ));
-    return GetBuilder(
-        init: HomeTagsController(),
-        builder: (controller) {
+    return ControllerBuilder(
+        create: () => HomeTagsController(),
+        builder: (context, controller) {
           return SafeArea(
             top: false,
             bottom: false,
@@ -34,7 +35,7 @@ class HomeTagsView extends StatelessWidget {
                   SubordinateScrollController(parentController);
               return KeepAliveWrapper(
                 child: controller.obx(
-                  (state) {
+                  (context, state) {
                     return NotificationListener<ScrollEndNotification>(
                       onNotification: (notification) {
                         final metrics = notification.metrics;
@@ -42,7 +43,7 @@ class HomeTagsView extends StatelessWidget {
                           bool isTop = metrics.pixels == 0;
                           if (isTop) {
                           } else {
-                            if (controller.isLoading.isFalse) {
+                            if (!controller.isLoading.value) {
                               controller.more();
                             }
                           }
@@ -78,7 +79,7 @@ class HomeTagsView extends StatelessWidget {
                                   itemBuilder: (context, index) {
                                     return GestureDetector(
                                       onTap: () {
-                                        Get.toNamed('/tags', arguments: {
+                                        appPushNamed('/tags', arguments: {
                                           'tag': state[index].name
                                         });
                                       },
@@ -207,7 +208,7 @@ class HomeTagsView extends StatelessWidget {
                                                               .transparent,
                                                           child: InkWell(
                                                             onTap: () {
-                                                              Get.toNamed(
+                                                              appPushNamed(
                                                                   '/tags',
                                                                   arguments: {
                                                                     'tag': state[
@@ -229,28 +230,32 @@ class HomeTagsView extends StatelessWidget {
                                     );
                                   }),
                             ),
-                            SliverToBoxAdapter(child: Obx(() {
-                              return SizedBox(
-                                  height: 5,
-                                  child: Visibility(
-                                    visible: controller.isLoading.isTrue,
-                                    maintainSize: false,
-                                    maintainSemantics: false,
-                                    maintainAnimation: false,
-                                    child: LinearProgressIndicator(
-                                        backgroundColor: Colors.grey,
-                                        valueColor: AlwaysStoppedAnimation(
-                                            Theme.of(context)
-                                                .colorScheme
-                                                .primary)),
-                                  ));
-                            }))
+                            SliverToBoxAdapter(
+                                child: ListenableBuilder(
+                                    listenable: controller.isLoading,
+                                    builder: (context, _) {
+                                      return SizedBox(
+                                          height: 5,
+                                          child: Visibility(
+                                            visible: controller.isLoading.value,
+                                            maintainSize: false,
+                                            maintainSemantics: false,
+                                            maintainAnimation: false,
+                                            child: LinearProgressIndicator(
+                                                backgroundColor: Colors.grey,
+                                                valueColor:
+                                                    AlwaysStoppedAnimation(
+                                                        Theme.of(context)
+                                                            .colorScheme
+                                                            .primary)),
+                                          ));
+                                    }))
                           ],
                         ),
                       ),
                     );
                   },
-                  onError: (error) {
+                  onError: (context, error) {
                     return const Text('加载失败');
                   },
                 ),

@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 
 /// 异步数据加载状态。
 enum LoadStatus {
@@ -151,9 +151,8 @@ class PagedListController<T> extends ChangeNotifier {
       notifyListeners();
     }
     try {
-      final PagedResult<T> page = _refresher != null
-          ? await _refresher!()
-          : await _fetcher(0);
+      final PagedResult<T> page =
+          _refresher != null ? await _refresher!() : await _fetcher(0);
       _items
         ..clear()
         ..addAll(page.items);
@@ -194,5 +193,54 @@ class PagedListController<T> extends ChangeNotifier {
       _isLoadingMore = false;
       notifyListeners();
     }
+  }
+}
+
+/// 通用“数据 + 状态”页面控制器。
+///
+/// 替代原 GetX `GetxController with StateMixin<T>` 组合：
+/// [change] 与旧 `change(data, status: RxStatus.x())` 签名保持一致，
+/// [obx] 与旧 `controller.obx(...)` 用法一致（builder 多一个 context 参数）。
+class LoadableController<T> extends ChangeNotifier {
+  LoadStatus status = LoadStatus.initial;
+  T? data;
+  Object? error;
+
+  /// 更新数据与状态并刷新界面（对应旧 `change`）。
+  void change(T? value, {required LoadStatus status, Object? error}) {
+    data = value;
+    this.status = status;
+    this.error = error;
+    notifyListeners();
+  }
+
+  /// 状态驱动的界面构建（对应旧 `controller.obx`）。
+  ///
+  /// [builder] 仅在 [LoadStatus.success] 时调用；
+  /// [onLoading]/[onEmpty] 直接给 widget，[onError] 接收 error 字符串。
+  Widget obx(
+    Widget Function(BuildContext context, T? state) builder, {
+    Widget? onLoading,
+    Widget? onEmpty,
+    Widget Function(BuildContext context, Object? error)? onError,
+  }) {
+    return ListenableBuilder(
+      listenable: this,
+      builder: (context, _) {
+        switch (status) {
+          case LoadStatus.loading:
+          case LoadStatus.initial:
+            return onLoading ??
+                const Center(child: CircularProgressIndicator());
+          case LoadStatus.empty:
+            return onEmpty ?? const Center(child: Text('暂无数据'));
+          case LoadStatus.error:
+            return onError?.call(context, error) ??
+                Center(child: Text('加载失败: $error'));
+          case LoadStatus.success:
+            return builder(context, data);
+        }
+      },
+    );
   }
 }

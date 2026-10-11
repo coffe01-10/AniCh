@@ -1,38 +1,39 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:xs/src/pages/search/models/search_type.dart';
+import 'package:xs/src/app/routes.dart';
+import 'package:xs/src/services/loading_state.dart';
 
-class SearchPanelController extends GetxController
-    with StateMixin, WidgetsBindingObserver, GetTickerProviderStateMixin {
-  final FocusNode searchFocusNode = FocusNode();
-  Rx<TextEditingController> controller = TextEditingController().obs;
-  RxString searchKeyWord = ''.obs;
-  String hintText = '搜索';
-  List historyCacheList = [];
-  RxList historyList = [].obs;
-  SearchType searchType = SearchType.picture;
-
-  @override
-  void onInit() {
-    super.onInit();
-    searchType = Get.arguments['type']!;
-    // 其他页面跳转过来
-    if (Get.parameters.keys.isNotEmpty) {
-      if (Get.parameters['keyword'] != null) {
-        onClickKeyword(Get.parameters['keyword']!);
-      }
-      if (Get.parameters['hintText'] != null) {
-        hintText = Get.parameters['hintText']!;
-        searchKeyWord.value = hintText;
-      }
+class SearchPanelController extends LoadableController<dynamic> {
+  SearchPanelController(
+      {required this.searchType, String? keyword, String? hintText}) {
+    if (keyword != null) {
+      onClickKeyword(keyword);
+    }
+    if (hintText != null) {
+      this.hintText = hintText;
+      searchKeyWord.value = hintText;
     }
     historyList.value = historyCacheList;
+    _init();
+  }
+
+  final FocusNode searchFocusNode = FocusNode();
+  final ValueNotifier<TextEditingController> controller =
+      ValueNotifier(TextEditingController());
+  final ValueNotifier<String> searchKeyWord = ValueNotifier('');
+  String hintText = '搜索';
+  List historyCacheList = [];
+  final historyList = ValueNotifier([]);
+  SearchType searchType = SearchType.picture;
+
+  void _init() {
+    searchType = data['type']!;
   }
 
   // 搜索
   void submit() {
     // ignore: unrelated_type_equality_checks
-    if (searchKeyWord == '') {
+    if (searchKeyWord.value == '') {
       return;
     }
     List arr = historyCacheList.where((e) => e != searchKeyWord.value).toList();
@@ -41,10 +42,10 @@ class SearchPanelController extends GetxController
 
     historyList.value = historyCacheList;
     // 手动刷新
-    historyList.refresh();
+    notifyListeners();
     // histiryWord.put('cacheList', historyCacheList);
     searchFocusNode.unfocus();
-    Get.offAndToNamed(
+    appPushReplacementNamed(
       '/search',
       arguments: {'type': searchType, 'keyword': searchKeyWord.value},
       // parameters: {'type': 'bangumi', 'keyword': searchKeyWord.value}
@@ -77,7 +78,7 @@ class SearchPanelController extends GetxController
       searchKeyWord.value = '';
       // searchSuggestList.value = [];
     } else {
-      Get.back();
+      appPop();
     }
   }
 }

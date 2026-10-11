@@ -77,8 +77,8 @@ class CommentController extends ChangeNotifier {
   // 发送评论
   Future<void> sendComment(Map json) async {
     try {
-      final response = await api.postComment(
-          id: json['id'], contents: json['contents']);
+      final response =
+          await api.postComment(id: json['id'], contents: json['contents']);
       if (response.statusCode == 200) {
         comments.insert(0, response.data['body']);
         notifyListeners();
@@ -168,8 +168,8 @@ class CommentController extends ChangeNotifier {
     commentRepliesLoading = true;
     notifyListeners();
     try {
-      final response = await api.getCommentReplies(
-          id: id, skip: commentReplies.last['id']);
+      final response =
+          await api.getCommentReplies(id: id, skip: commentReplies.last['id']);
       if (response.statusCode == 200) {
         commentReplies.addAll(response.data['body']['data'].toList());
       } else {

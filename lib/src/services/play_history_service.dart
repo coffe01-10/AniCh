@@ -41,8 +41,7 @@ class PlayHistoryService {
 
   /// 清空历史记录（先弹确认框）。
   Future<void> clean() async {
-    final result =
-        await Utils.showAlertDialog('确定要清空观看记录吗?', title: '清空观看记录');
+    final result = await Utils.showAlertDialog('确定要清空观看记录吗?', title: '清空观看记录');
     if (!result) {
       return;
     }

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:xs/src/pages/bangumi_collection/controller.dart';
 import 'package:xs/src/pages/bangumi_collection/views/watch.dart';
 import 'package:xs/src/pages/bangumi_collection/views/watched.dart';
@@ -7,18 +6,20 @@ import 'package:xs/src/pages/bangumi_collection/views/wish.dart';
 import 'package:xs/src/widgets/drag_to_move_bar.dart';
 import 'package:xs/src/widgets/multi_sliver_compat/sliver_persistent_header_delegate.dart';
 import 'package:xs/src/widgets/navbar.dart';
+import 'package:xs/src/app/routes.dart';
+import 'package:xs/src/widgets/controller_builder.dart';
 
 class BangumiCollectionPage extends StatelessWidget {
   const BangumiCollectionPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    RxInt scrollHeight = 0.obs;
-    RxBool scrollStatus = true.obs;
-    RxDouble maxShrinkOpacity = 1.0.obs;
-    return GetBuilder(
-        init: BangumiCollectionController(),
-        builder: (controller) {
+    final ValueNotifier<int> scrollHeight = ValueNotifier(0);
+    final ValueNotifier<bool> scrollStatus = ValueNotifier(true);
+    final ValueNotifier<double> maxShrinkOpacity = ValueNotifier(1.0);
+    return ControllerBuilder(
+        create: () => BangumiCollectionController(),
+        builder: (context, controller) {
           return Scaffold(
             extendBody: true,
             body: SafeArea(
@@ -37,18 +38,18 @@ class BangumiCollectionPage extends StatelessWidget {
                         if (pixels > scrollHeight.value) {
                           if (notification.depth > 0 &&
                               lastScrollStatus != false) {
-                            scrollStatus(false);
+                            scrollStatus.value = (false);
                             controller.animationController.forward();
                             debugPrint('向下');
                           }
                         } else if (pixels < scrollHeight.value) {
                           if (lastScrollStatus != true) {
-                            scrollStatus(true);
+                            scrollStatus.value = (true);
                             controller.animationController.reverse();
                             debugPrint('向上');
                           }
                         }
-                        scrollHeight(pixels);
+                        scrollHeight.value = (pixels);
                       }
                       return false;
                     },
@@ -73,40 +74,42 @@ class BangumiCollectionPage extends StatelessWidget {
                           floating: true,
                           delegate: CustomSliverPersistentHeaderDelegate(
                             onMaxOffset: (offset) {
-                              maxShrinkOpacity(1 - offset);
+                              maxShrinkOpacity.value = (1 - offset);
                             },
                             child: Material(
                               color: Theme.of(context).scaffoldBackgroundColor,
                               child: CustomDragToMoveArea(
-                                child: Obx(
-                                  () {
-                                    return Opacity(
-                                      opacity: maxShrinkOpacity.value,
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 10, vertical: 5),
-                                        constraints:
-                                            const BoxConstraints(minHeight: 50),
-                                        color: Theme.of(context)
-                                            .scaffoldBackgroundColor,
-                                        child: Row(
-                                          children: [
-                                            const Expanded(
-                                              child: Text(
-                                                '追番列表',
-                                                style: TextStyle(fontSize: 16),
+                                child: ListenableBuilder(
+                                    listenable: maxShrinkOpacity,
+                                    builder: (context, _) {
+                                      return Opacity(
+                                        opacity: maxShrinkOpacity.value,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 10, vertical: 5),
+                                          constraints: const BoxConstraints(
+                                              minHeight: 50),
+                                          color: Theme.of(context)
+                                              .scaffoldBackgroundColor,
+                                          child: Row(
+                                            children: [
+                                              const Expanded(
+                                                child: Text(
+                                                  '追番列表',
+                                                  style:
+                                                      TextStyle(fontSize: 16),
+                                                ),
                                               ),
-                                            ),
-                                            closeWindowButton(
-                                                positioned: false,
-                                                padding: const EdgeInsets.only(
-                                                    left: 10)),
-                                          ],
+                                              closeWindowButton(
+                                                  positioned: false,
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                          left: 10)),
+                                            ],
+                                          ),
                                         ),
-                                      ),
-                                    );
-                                  },
-                                ),
+                                      );
+                                    }),
                               ),
                             ),
                           )),
@@ -155,7 +158,7 @@ class BangumiCollectionPage extends StatelessWidget {
                       NavItem(
                           icon: Icons.arrow_back,
                           title: '返回',
-                          onTap: () => Get.back()),
+                          onTap: () => appPop()),
                     ],
                   ),
                 )

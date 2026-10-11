@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:get/get.dart';
 import 'package:xs/src/pages/search/controller.dart';
 import 'package:xs/src/widgets/keepalive.dart';
 import 'package:xs/src/widgets/subordinate_scroll_controller.dart';
+import 'package:xs/src/app/routes.dart';
+import 'package:xs/src/widgets/controller_builder.dart';
 
 class SearchBangumiView extends StatelessWidget {
   const SearchBangumiView(
@@ -23,11 +24,9 @@ class SearchBangumiView extends StatelessWidget {
           ? Brightness.dark
           : Brightness.light,
     ));
-    return GetBuilder(
-        id: keyword,
-        global: false,
-        init: SearchBangumiController(keyword),
-        builder: (controller) {
+    return ControllerBuilder(
+        create: () => SearchBangumiController(keyword),
+        builder: (context, controller) {
           return SafeArea(
             top: false,
             bottom: false,
@@ -44,7 +43,7 @@ class SearchBangumiView extends StatelessWidget {
                     bool isTop = metrics.pixels == 0;
                     if (isTop) {
                     } else {
-                      if (controller.isLoading.isFalse) {
+                      if (!controller.isLoading.value) {
                         controller.more();
                       }
                     }
@@ -58,7 +57,7 @@ class SearchBangumiView extends StatelessWidget {
                     await controller.reload();
                   },
                   child: controller.obx(
-                    (state) {
+                    (context, state) {
                       return Stack(
                         children: [
                           CustomScrollView(
@@ -84,7 +83,7 @@ class SearchBangumiView extends StatelessWidget {
                                     itemBuilder: (context, index) {
                                       return GestureDetector(
                                         onTap: () {
-                                          Get.toNamed(
+                                          appPushNamed(
                                               '/bangumi/${state[index].id}',
                                               arguments: state[index]);
                                           // ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -207,7 +206,7 @@ class SearchBangumiView extends StatelessWidget {
                                                                 .transparent,
                                                             child: InkWell(
                                                               onTap: () {
-                                                                Get.toNamed(
+                                                                appPushNamed(
                                                                     '/bangumi/${state[index].id}',
                                                                     arguments:
                                                                         state[
@@ -223,7 +222,7 @@ class SearchBangumiView extends StatelessWidget {
                                                                 //   content:
                                                                 //       Text(state[index].title),
                                                                 // ));
-                                                                // Get.toNamed('/thread/${state[index].id}',
+                                                                // appPushNamed('/thread/${state[index].id}',
                                                                 //     arguments: state[index]);
                                                               },
                                                             ),
@@ -261,28 +260,33 @@ class SearchBangumiView extends StatelessWidget {
                                       );
                                     }),
                               ),
-                              SliverToBoxAdapter(child: Obx(() {
-                                return SizedBox(
-                                    height: 5,
-                                    child: Visibility(
-                                      visible: controller.isLoading.isTrue,
-                                      maintainSize: false,
-                                      maintainSemantics: false,
-                                      maintainAnimation: false,
-                                      child: LinearProgressIndicator(
-                                          backgroundColor: Colors.grey,
-                                          valueColor: AlwaysStoppedAnimation(
-                                              Theme.of(context)
-                                                  .colorScheme
-                                                  .primary)),
-                                    ));
-                              }))
+                              SliverToBoxAdapter(
+                                  child: ListenableBuilder(
+                                      listenable: controller.isLoading,
+                                      builder: (context, _) {
+                                        return SizedBox(
+                                            height: 5,
+                                            child: Visibility(
+                                              visible:
+                                                  controller.isLoading.value,
+                                              maintainSize: false,
+                                              maintainSemantics: false,
+                                              maintainAnimation: false,
+                                              child: LinearProgressIndicator(
+                                                  backgroundColor: Colors.grey,
+                                                  valueColor:
+                                                      AlwaysStoppedAnimation(
+                                                          Theme.of(context)
+                                                              .colorScheme
+                                                              .primary)),
+                                            ));
+                                      }))
                             ],
                           ),
                         ],
                       );
                     },
-                    onError: (error) {
+                    onError: (context, error) {
                       return const Text('加载失败');
                     },
                   ),

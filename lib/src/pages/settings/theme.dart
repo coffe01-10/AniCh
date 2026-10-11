@@ -1,25 +1,27 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:xs/src/pages/settings/controller.dart';
-import 'package:xs/src/pages/settings/storage/theme_storage.dart';
+import 'package:xs/src/services/theme_service.dart';
 import 'package:xs/src/utils/app_style.dart';
 import 'package:xs/src/widgets/drag_to_move_bar.dart';
 import 'package:xs/src/widgets/multi_sliver_compat/sliver_persistent_header_delegate.dart';
 import 'package:xs/src/widgets/navbar.dart';
 import 'package:xs/src/widgets/settings/settings_card.dart';
 import 'package:xs/src/widgets/settings/settings_switch.dart';
+import 'package:xs/src/app/navigator_key.dart';
+import 'package:xs/src/app/routes.dart';
+import 'package:xs/src/widgets/controller_builder.dart';
 
 class ThemeSettingsPage extends StatelessWidget {
   const ThemeSettingsPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    RxInt scrollHeight = 0.obs;
-    RxBool scrollStatus = true.obs;
-    RxDouble maxShrinkOpacity = 1.0.obs;
-    return GetBuilder(
-        init: ThemeSettingsPageController(),
-        builder: (controller) {
+    final ValueNotifier<int> scrollHeight = ValueNotifier(0);
+    final ValueNotifier<bool> scrollStatus = ValueNotifier(true);
+    final ValueNotifier<double> maxShrinkOpacity = ValueNotifier(1.0);
+    return ControllerBuilder(
+        create: () => ThemeSettingsPageController(),
+        builder: (context, controller) {
           return Scaffold(
             extendBody: true,
             backgroundColor: Theme.of(context).dialogBackgroundColor,
@@ -37,18 +39,18 @@ class ThemeSettingsPage extends StatelessWidget {
                       if (pixels > scrollHeight.value) {
                         if (notification.depth > 0 &&
                             lastScrollStatus != false) {
-                          scrollStatus(false);
+                          scrollStatus.value = (false);
                           controller.animationController.forward();
                           debugPrint('向下');
                         }
                       } else if (pixels < scrollHeight.value) {
                         if (lastScrollStatus != true) {
-                          scrollStatus(true);
+                          scrollStatus.value = (true);
                           controller.animationController.reverse();
                           debugPrint('向上');
                         }
                       }
-                      scrollHeight(pixels);
+                      scrollHeight.value = (pixels);
                     }
                     return false;
                   },
@@ -65,12 +67,14 @@ class ThemeSettingsPage extends StatelessWidget {
                               padding: AppStyle.edgeInsetsA12.copyWith(top: 50),
                               child: Text(
                                 '显示主题',
-                                style: Get.textTheme.titleSmall,
+                                style:
+                                    Theme.of(appContext).textTheme.titleSmall,
                               ),
                             ),
                             SettingsCard(
-                              child: Obx(
-                                () => Column(
+                              child: ListenableBuilder(
+                                listenable: ThemeService.instance.themeMode,
+                                builder: (context, _) => Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     RadioListTile<int>(
@@ -81,10 +85,10 @@ class ThemeSettingsPage extends StatelessWidget {
                                       value: 0,
                                       contentPadding: AppStyle.edgeInsetsH12,
                                       groupValue:
-                                          ThemeSettingsStorage.themeMode.value,
+                                          ThemeService.instance.themeMode.value,
                                       onChanged: (e) {
-                                        ThemeSettingsStorage.setThemeMode(
-                                            e ?? 0);
+                                        ThemeService.instance
+                                            .setThemeMode(e ?? 0);
                                       },
                                     ),
                                     AppStyle.divider,
@@ -96,10 +100,10 @@ class ThemeSettingsPage extends StatelessWidget {
                                       value: 1,
                                       contentPadding: AppStyle.edgeInsetsH12,
                                       groupValue:
-                                          ThemeSettingsStorage.themeMode.value,
+                                          ThemeService.instance.themeMode.value,
                                       onChanged: (e) {
-                                        ThemeSettingsStorage.setThemeMode(
-                                            e ?? 1);
+                                        ThemeService.instance
+                                            .setThemeMode(e ?? 1);
                                       },
                                     ),
                                     AppStyle.divider,
@@ -111,10 +115,10 @@ class ThemeSettingsPage extends StatelessWidget {
                                       value: 2,
                                       contentPadding: AppStyle.edgeInsetsH12,
                                       groupValue:
-                                          ThemeSettingsStorage.themeMode.value,
+                                          ThemeService.instance.themeMode.value,
                                       onChanged: (e) {
-                                        ThemeSettingsStorage.setThemeMode(
-                                            e ?? 2);
+                                        ThemeService.instance
+                                            .setThemeMode(e ?? 2);
                                       },
                                     ),
                                   ],
@@ -126,27 +130,28 @@ class ThemeSettingsPage extends StatelessWidget {
                               padding: AppStyle.edgeInsetsA12,
                               child: Text(
                                 '主题颜色',
-                                style: Get.textTheme.titleSmall,
+                                style:
+                                    Theme.of(appContext).textTheme.titleSmall,
                               ),
                             ),
                             SettingsCard(
-                              child: Obx(
-                                () => Column(
+                              child: ListenableBuilder(
+                                listenable: ThemeService.instance.isDynamic,
+                                builder: (context, _) => Column(
                                   mainAxisSize: MainAxisSize.min,
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     SettingsSwitch(
                                       value:
-                                          ThemeSettingsStorage.isDynamic.value,
+                                          ThemeService.instance.isDynamic.value,
                                       title: '动态取色',
                                       onChanged: (e) {
-                                        ThemeSettingsStorage.setIsDynamic(e);
-                                        Get.forceAppUpdate();
+                                        ThemeService.instance.setIsDynamic(e);
                                       },
                                     ),
-                                    if (!ThemeSettingsStorage.isDynamic.value)
+                                    if (!ThemeService.instance.isDynamic.value)
                                       AppStyle.divider,
-                                    if (!ThemeSettingsStorage.isDynamic.value)
+                                    if (!ThemeService.instance.isDynamic.value)
                                       Padding(
                                         padding: AppStyle.edgeInsetsA12,
                                         child: Wrap(
@@ -165,9 +170,8 @@ class ThemeSettingsPage extends StatelessWidget {
                                               .map(
                                                 (e) => GestureDetector(
                                                   onTap: () {
-                                                    ThemeSettingsStorage
+                                                    ThemeService.instance
                                                         .setStyleColor(e.value);
-                                                    Get.forceAppUpdate();
                                                   },
                                                   child: Container(
                                                     width: 36,
@@ -182,11 +186,15 @@ class ThemeSettingsPage extends StatelessWidget {
                                                         width: 1,
                                                       ),
                                                     ),
-                                                    child: Obx(
-                                                      () => Center(
+                                                    child: ListenableBuilder(
+                                                      listenable: ThemeService
+                                                          .instance.styleColor,
+                                                      builder: (context, _) =>
+                                                          Center(
                                                         child: Icon(
                                                           Icons.check,
-                                                          color: ThemeSettingsStorage
+                                                          color: ThemeService
+                                                                      .instance
                                                                       .styleColor
                                                                       .value ==
                                                                   e.value
@@ -221,40 +229,42 @@ class ThemeSettingsPage extends StatelessWidget {
                           pinned: true,
                           delegate: CustomSliverPersistentHeaderDelegate(
                             onMaxOffset: (offset) {
-                              maxShrinkOpacity(1 - offset);
+                              maxShrinkOpacity.value = (1 - offset);
                             },
                             child: Material(
                               color: Theme.of(context).dialogBackgroundColor,
                               child: CustomDragToMoveArea(
-                                child: Obx(
-                                  () {
-                                    return Opacity(
-                                      opacity: maxShrinkOpacity.value,
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 10, vertical: 5),
-                                        constraints:
-                                            const BoxConstraints(minHeight: 50),
-                                        color: Theme.of(context)
-                                            .dialogBackgroundColor,
-                                        child: Row(
-                                          children: [
-                                            const Expanded(
-                                              child: Text(
-                                                '外观设置',
-                                                style: TextStyle(fontSize: 16),
+                                child: ListenableBuilder(
+                                    listenable: maxShrinkOpacity,
+                                    builder: (context, _) {
+                                      return Opacity(
+                                        opacity: maxShrinkOpacity.value,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 10, vertical: 5),
+                                          constraints: const BoxConstraints(
+                                              minHeight: 50),
+                                          color: Theme.of(context)
+                                              .dialogBackgroundColor,
+                                          child: Row(
+                                            children: [
+                                              const Expanded(
+                                                child: Text(
+                                                  '外观设置',
+                                                  style:
+                                                      TextStyle(fontSize: 16),
+                                                ),
                                               ),
-                                            ),
-                                            closeWindowButton(
-                                                positioned: false,
-                                                padding: const EdgeInsets.only(
-                                                    left: 10)),
-                                          ],
+                                              closeWindowButton(
+                                                  positioned: false,
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                          left: 10)),
+                                            ],
+                                          ),
                                         ),
-                                      ),
-                                    );
-                                  },
-                                ),
+                                      );
+                                    }),
                               ),
                             ),
                           )),
@@ -274,7 +284,7 @@ class ThemeSettingsPage extends StatelessWidget {
                       NavItem(
                           icon: Icons.arrow_back,
                           title: '返回',
-                          onTap: () => Get.back()),
+                          onTap: () => appPop()),
                     ],
                   ),
                 )

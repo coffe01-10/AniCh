@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:get/get.dart';
 import 'package:xs/src/pages/bangumi_detail/controller.dart';
 import 'package:xs/src/widgets/keepalive.dart';
 import 'package:xs/src/widgets/subordinate_scroll_controller.dart';
+import 'package:xs/src/app/routes.dart';
+import 'package:xs/src/widgets/controller_builder.dart';
 
 class BangumiDetailRelatedView extends StatelessWidget {
-  const BangumiDetailRelatedView({super.key, this.active = false});
+  const BangumiDetailRelatedView(
+      {super.key, required this.id, this.active = false});
+  final int id;
   final bool active;
 
   @override
@@ -21,11 +24,9 @@ class BangumiDetailRelatedView extends StatelessWidget {
           ? Brightness.dark
           : Brightness.light,
     ));
-    return GetBuilder(
-        id: Get.currentRoute,
-        global: false,
-        init: BangumiDetailRelatedController(),
-        builder: (controller) {
+    return ControllerBuilder(
+        create: () => BangumiDetailRelatedController(id),
+        builder: (context, controller) {
           return SafeArea(
             top: false,
             bottom: false,
@@ -42,7 +43,7 @@ class BangumiDetailRelatedView extends StatelessWidget {
                     bool isTop = metrics.pixels == 0;
                     if (isTop) {
                     } else {
-                      // if (controller.isLoading.isFalse) {
+                      // if (!controller.isLoading.value) {
                       //   controller.more();
                       // }
                     }
@@ -55,7 +56,7 @@ class BangumiDetailRelatedView extends StatelessWidget {
                   onRefresh: () async {
                     await controller.reload();
                   },
-                  child: controller.obx((state) {
+                  child: controller.obx((context, state) {
                     return CustomScrollView(
                       key: const PageStorageKey('bangumi-detail-related'),
                       controller:
@@ -80,10 +81,10 @@ class BangumiDetailRelatedView extends StatelessWidget {
                               itemBuilder: (context, index) {
                                 return GestureDetector(
                                   onTap: () {
-                                    if (state[index].id == Get.arguments.id) {
+                                    if (state[index].id == id) {
                                       return;
                                     }
-                                    Get.toNamed('/bangumi/${state[index].id}',
+                                    appPushNamed('/bangumi/${state[index].id}',
                                         arguments: state[index]);
                                     // ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                                     //   behavior: SnackBarBehavior.floating,
@@ -259,7 +260,7 @@ class BangumiDetailRelatedView extends StatelessWidget {
                                                       color: Colors.transparent,
                                                       child: InkWell(
                                                         onTap: () {
-                                                          Get.toNamed(
+                                                          appPushNamed(
                                                               '/bangumi/${state[index].id}',
                                                               arguments:
                                                                   state[index]);
@@ -274,7 +275,7 @@ class BangumiDetailRelatedView extends StatelessWidget {
                                                           //   content:
                                                           //       Text(state[index].title),
                                                           // ));
-                                                          // Get.toNamed('/thread/${state[index].id}',
+                                                          // appPushNamed('/thread/${state[index].id}',
                                                           //     arguments: state[index]);
                                                         },
                                                       ),

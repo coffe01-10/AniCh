@@ -3,11 +3,12 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
-import 'package:get/get.dart';
 import 'package:xs/src/pages/thread_collection/controller.dart';
 import 'package:xs/src/utils/color.dart';
 import 'package:xs/src/widgets/keepalive.dart';
 import 'package:xs/src/widgets/subordinate_scroll_controller.dart';
+import 'package:xs/src/app/routes.dart';
+import 'package:xs/src/widgets/controller_builder.dart';
 
 class ThreadCosplayCollectionView extends StatelessWidget {
   const ThreadCosplayCollectionView({super.key, this.active = false});
@@ -26,9 +27,9 @@ class ThreadCosplayCollectionView extends StatelessWidget {
     final defaultItemWidth = size.width / 300;
     final column = max(defaultItemWidth.ceil(), 2);
     final itemWidth = size.width / column;
-    return GetBuilder(
-        init: ThreadCosplayCollectionController(),
-        builder: (controller) {
+    return ControllerBuilder(
+        create: () => ThreadCosplayCollectionController(),
+        builder: (context, controller) {
           return SafeArea(
             top: false,
             bottom: false,
@@ -45,7 +46,7 @@ class ThreadCosplayCollectionView extends StatelessWidget {
                     bool isTop = metrics.pixels == 0;
                     if (isTop) {
                     } else {
-                      if (controller.isLoading.isFalse) {
+                      if (!controller.isLoading.value) {
                         controller.more();
                       }
                     }
@@ -61,7 +62,7 @@ class ThreadCosplayCollectionView extends StatelessWidget {
                     await controller.reload();
                   },
                   child: controller.obx(
-                    (state) {
+                    (context, state) {
                       return CustomScrollView(
                         key: const PageStorageKey('thread-collection-cosplay'),
                         controller:
@@ -204,7 +205,7 @@ class ThreadCosplayCollectionView extends StatelessWidget {
                                           color: Colors.transparent,
                                           child: InkWell(
                                             onTap: () {
-                                              Get.toNamed(
+                                              appPushNamed(
                                                   '/thread/${state[index].id}',
                                                   arguments: state[index]);
                                             },
@@ -217,26 +218,30 @@ class ThreadCosplayCollectionView extends StatelessWidget {
                               },
                             ),
                           ),
-                          SliverToBoxAdapter(child: Obx(() {
-                            return SizedBox(
-                                height: 5,
-                                child: Visibility(
-                                  visible: controller.isLoading.isTrue,
-                                  maintainSize: false,
-                                  maintainSemantics: false,
-                                  maintainAnimation: false,
-                                  child: LinearProgressIndicator(
-                                      backgroundColor: Colors.grey,
-                                      valueColor: AlwaysStoppedAnimation(
-                                          Theme.of(context)
-                                              .colorScheme
-                                              .primary)),
-                                ));
-                          }))
+                          SliverToBoxAdapter(
+                              child: ListenableBuilder(
+                                  listenable: controller.isLoading,
+                                  builder: (context, _) {
+                                    return SizedBox(
+                                        height: 5,
+                                        child: Visibility(
+                                          visible: controller.isLoading.value,
+                                          maintainSize: false,
+                                          maintainSemantics: false,
+                                          maintainAnimation: false,
+                                          child: LinearProgressIndicator(
+                                              backgroundColor: Colors.grey,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation(
+                                                      Theme.of(context)
+                                                          .colorScheme
+                                                          .primary)),
+                                        ));
+                                  }))
                         ],
                       );
                     },
-                    onError: (error) {
+                    onError: (context, error) {
                       return const Text('加载失败');
                     },
                   ),

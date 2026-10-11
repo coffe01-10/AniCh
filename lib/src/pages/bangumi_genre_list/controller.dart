@@ -1,13 +1,35 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:xs/protobuf/bangumi.pb.dart';
 import 'package:xs/src/apis/bangumi.dart';
+import 'package:xs/src/services/loading_state.dart';
+import 'package:xs/src/widgets/controller_builder.dart';
 
-class BangumiGenreListController extends GetxController
-    with StateMixin<List<bangumi_list_item_>>, GetTickerProviderStateMixin {
-  RxString genre = ''.obs;
+class BangumiGenreListController
+    extends LoadableController<List<bangumi_list_item_>>
+    implements VsyncAttachable {
+  BangumiGenreListController(String name) {
+    genre.value = name;
+    _init();
+  }
+  TickerProvider? _vsync;
+
+  @override
+  void attach(TickerProvider vsync) {
+    _vsync = vsync;
+    animationController = AnimationController(
+      vsync: vsync,
+      duration: const Duration(milliseconds: 500),
+    );
+  }
+
+  @override
+  void detach() {
+    animationController.dispose();
+  }
+
+  final ValueNotifier<String> genre = ValueNotifier('');
   List<bangumi_list_item_> result = [];
-  RxBool isLoading = false.obs;
+  final ValueNotifier<bool> isLoading = ValueNotifier(false);
 
   Map<String, String> typeList = {
     '': '类型',
@@ -29,22 +51,16 @@ class BangumiGenreListController extends GetxController
     '': '年份',
   };
 
-  RxString typeSelect = ''.obs;
-  RxString langSelect = ''.obs;
-  RxString yearSelect = ''.obs;
-  RxString typeSelected = ''.obs;
-  RxString langSelected = ''.obs;
-  RxString yearSelected = ''.obs;
+  final ValueNotifier<String> typeSelect = ValueNotifier('');
+  final ValueNotifier<String> langSelect = ValueNotifier('');
+  final ValueNotifier<String> yearSelect = ValueNotifier('');
+  final ValueNotifier<String> typeSelected = ValueNotifier('');
+  final ValueNotifier<String> langSelected = ValueNotifier('');
+  final ValueNotifier<String> yearSelected = ValueNotifier('');
 
   late final AnimationController animationController;
 
-  @override
-  void onInit() {
-    genre(Get.arguments['name']);
-    animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 500),
-    );
+  void _init() {
     // 创建年份
     int currentYear = DateTime.now().year;
     List<String>.generate(35, (i) {
@@ -54,33 +70,32 @@ class BangumiGenreListController extends GetxController
     });
 
     get();
-    super.onInit();
   }
 
   // 获取数据
   void get() async {
     try {
       debugPrint('BangumiGenreListController-get');
-      change(result, status: RxStatus.loading());
+      change(result, status: LoadStatus.loading);
       final response = await BangumiApi.getBangumiList(genre: genre);
       final data = bangumi_list_.fromBuffer(response.data);
       result.addAll(data.data);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
-      change(null, status: RxStatus.error('error'));
+      change(null, status: LoadStatus.error, error: 'error');
     }
   }
 
   // 筛选
   void filter() async {
     try {
-      typeSelected(typeSelect.value);
-      langSelected(langSelect.value);
-      yearSelected(yearSelect.value);
+      typeSelected.value = (typeSelect.value);
+      langSelected.value = (langSelect.value);
+      yearSelected.value = (yearSelect.value);
       debugPrint('BangumiGenreListController-filter');
       result.clear();
-      change(null, status: RxStatus.loading());
+      change(null, status: LoadStatus.loading);
       final response = await BangumiApi.getBangumiList(
           genre: genre,
           type: typeSelected.value,
@@ -88,19 +103,19 @@ class BangumiGenreListController extends GetxController
           year: yearSelected.value);
       final data = bangumi_list_.fromBuffer(response.data);
       result.addAll(data.data);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
-      change(null, status: RxStatus.error('error'));
+      change(null, status: LoadStatus.error, error: 'error');
     }
-    isLoading(false);
+    isLoading.value = (false);
   }
 
   // 加载更多
   void more() async {
     try {
       debugPrint('BangumiGenreListController-more');
-      isLoading(true);
+      isLoading.value = (true);
       final response = await BangumiApi.getBangumiList(
           genre: genre,
           type: typeSelected.value,
@@ -109,11 +124,11 @@ class BangumiGenreListController extends GetxController
           skip: result.last.id);
       final data = bangumi_list_.fromBuffer(response.data);
       result.addAll(data.data);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
     }
-    isLoading(false);
+    isLoading.value = (false);
   }
 
   // 刷新
@@ -128,7 +143,7 @@ class BangumiGenreListController extends GetxController
       final data = bangumi_list_.fromBuffer(response.data);
       result.clear();
       result.addAll(data.data);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
     }

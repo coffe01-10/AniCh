@@ -40,7 +40,14 @@ final $typed_data.Uint8List thread_list_data_Descriptor = $convert.base64Decode(
 const thread_list_body_$json = {
   '1': '_thread_list_body',
   '2': [
-    {'1': 'data', '3': 1, '4': 3, '5': 11, '6': '.list._thread_list_data', '10': 'data'},
+    {
+      '1': 'data',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.list._thread_list_data',
+      '10': 'data'
+    },
     {'1': 'prev', '3': 2, '4': 1, '5': 13, '10': 'prev'},
     {'1': 'next', '3': 3, '4': 1, '5': 13, '10': 'next'},
   ],
@@ -57,7 +64,14 @@ const thread_list_$json = {
   '2': [
     {'1': 'error', '3': 1, '4': 1, '5': 8, '10': 'error'},
     {'1': 'message', '3': 2, '4': 1, '5': 9, '10': 'message'},
-    {'1': 'body', '3': 3, '4': 1, '5': 11, '6': '.list._thread_list_body', '10': 'body'},
+    {
+      '1': 'body',
+      '3': 3,
+      '4': 1,
+      '5': 11,
+      '6': '.list._thread_list_body',
+      '10': 'body'
+    },
   ],
 };
 
@@ -86,7 +100,14 @@ const autocomplete_$json = {
   '2': [
     {'1': 'error', '3': 1, '4': 1, '5': 8, '10': 'error'},
     {'1': 'message', '3': 2, '4': 1, '5': 9, '10': 'message'},
-    {'1': 'body', '3': 3, '4': 3, '5': 11, '6': '.list._autocomplete_body', '10': 'body'},
+    {
+      '1': 'body',
+      '3': 3,
+      '4': 3,
+      '5': 11,
+      '6': '.list._autocomplete_body',
+      '10': 'body'
+    },
   ],
 };
 
@@ -123,7 +144,14 @@ const tag_info_body_$json = {
     {'1': 'desc', '3': 4, '4': 1, '5': 9, '10': 'desc'},
     {'1': 'image', '3': 5, '4': 1, '5': 9, '10': 'image'},
     {'1': 'color', '3': 6, '4': 1, '5': 9, '10': 'color'},
-    {'1': 'related', '3': 7, '4': 3, '5': 11, '6': '.list._tag_info_related', '10': 'related'},
+    {
+      '1': 'related',
+      '3': 7,
+      '4': 3,
+      '5': 11,
+      '6': '.list._tag_info_related',
+      '10': 'related'
+    },
   ],
 };
 
@@ -140,7 +168,14 @@ const tag_info_$json = {
   '2': [
     {'1': 'error', '3': 1, '4': 1, '5': 8, '10': 'error'},
     {'1': 'message', '3': 2, '4': 1, '5': 9, '10': 'message'},
-    {'1': 'body', '3': 3, '4': 1, '5': 11, '6': '.list._tag_info_body', '10': 'body'},
+    {
+      '1': 'body',
+      '3': 3,
+      '4': 1,
+      '5': 11,
+      '6': '.list._tag_info_body',
+      '10': 'body'
+    },
   ],
 };
 
@@ -148,4 +183,3 @@ const tag_info_$json = {
 final $typed_data.Uint8List tag_info_Descriptor = $convert.base64Decode(
     'CglfdGFnX2luZm8SFAoFZXJyb3IYASABKAhSBWVycm9yEhgKB21lc3NhZ2UYAiABKAlSB21lc3'
     'NhZ2USKAoEYm9keRgDIAEoCzIULmxpc3QuX3RhZ19pbmZvX2JvZHlSBGJvZHk=');
-
