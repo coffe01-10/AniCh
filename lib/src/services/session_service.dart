@@ -33,7 +33,7 @@ class SessionService {
     user.value = _box.read('user');
     if (token != null) {
       try {
-        await AccountApi.init();
+        await (AccountApi.init() as Future);
       } catch (_) {
         // 网络异常不阻塞启动，沿用本地缓存
       }

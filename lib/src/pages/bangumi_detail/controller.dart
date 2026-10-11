@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
-import 'package:get/get.dart';
 import 'package:xs/protobuf/bangumi.pb.dart';
 import 'package:xs/src/apis/bangumi.dart';
 import 'package:xs/src/pages/bangumi_detail/models/bangumi_detail_model.dart';
@@ -9,9 +8,39 @@ import 'package:xs/src/utils/app_style.dart';
 import 'package:xs/src/utils/utils.dart';
 import 'package:xs/src/widgets/settings/settings_action.dart';
 import 'package:xs/src/widgets/settings/settings_card.dart';
+import 'package:xs/src/app/routes.dart';
+import 'package:xs/src/services/loading_state.dart';
+import 'package:xs/src/widgets/controller_builder.dart';
 
-class BangumiDetailController extends GetxController
-    with StateMixin<BangumiDetailModel>, GetTickerProviderStateMixin {
+class BangumiDetailController extends LoadableController<BangumiDetailModel>
+    implements VsyncAttachable {
+  BangumiDetailController({required int id, BangumiDetailModel? data}) {
+    this.id.value = id;
+    this.data = data;
+    _init();
+  }
+  TickerProvider? _vsync;
+
+  @override
+  void attach(TickerProvider vsync) {
+    _vsync = vsync;
+    tabController =
+        TabController(vsync: vsync, length: tabs.length, initialIndex: 0);
+    tabController.addListener(() {
+      tabIndex.value = (tabController.index);
+    });
+    animationController = AnimationController(
+      vsync: vsync,
+      duration: const Duration(milliseconds: 500),
+    );
+  }
+
+  @override
+  void detach() {
+    tabController.dispose();
+    animationController.dispose();
+  }
+
   // 导航栏
   final List<Tab> tabs = <Tab>[
     const Tab(
@@ -48,35 +77,21 @@ class BangumiDetailController extends GetxController
 
   late TabController tabController;
   late final AnimationController animationController;
-  RxInt id = 0.obs;
-  RxInt tabIndex = 0.obs;
+  final ValueNotifier<int> id = ValueNotifier(0);
+  final ValueNotifier<int> tabIndex = ValueNotifier(0);
   List<BangumiDetailModel> result = [];
-  RxBool collectStatusLoading = true.obs;
-  RxBool collectStatus = false.obs;
-  RxInt collectType = 999.obs;
+  final ValueNotifier<bool> collectStatusLoading = ValueNotifier(true);
+  final ValueNotifier<bool> collectStatus = ValueNotifier(false);
+  final ValueNotifier<int> collectType = ValueNotifier(999);
   List collectTypeList = ['wish', 'watch', 'watched'];
 
-  @override
-  void onInit() {
-    id(Get.arguments.id);
+  void _init() {
     get();
     getCollectStatus();
-    super.onInit();
-
-    tabController =
-        TabController(vsync: this, length: tabs.length, initialIndex: 0);
-    tabController.addListener(() {
-      tabIndex(tabController.index);
-    });
-
-    animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 500),
-    );
   }
 
   // 查询数据
-  BangumiDetailModel? find(id) {
+  BangumiDetailModel? find(ValueNotifier<int> id) {
     try {
       return result.where((i) => i.id == id.value).first;
     } catch (e) {
@@ -88,24 +103,24 @@ class BangumiDetailController extends GetxController
   void get() async {
     try {
       debugPrint('BangumiDetailController-get');
-      change(null, status: RxStatus.loading());
+      change(null, status: LoadStatus.loading);
       final response = await BangumiApi.getBangumiDetail(id: id.value);
       if (response.statusCode == 200) {
         final data = BangumiDetailModel.fromJson(response.data);
-        final old = find(Get.arguments.id);
+        final old = find(id);
         if (old == null) {
           result.add(data);
         } else {
           result.remove(old);
           result.add(data);
         }
-        change(data, status: RxStatus.success());
+        change(data, status: LoadStatus.success);
       } else {
         throw Error();
       }
     } catch (e) {
       debugPrint(e.toString());
-      change(null, status: RxStatus.error('error'));
+      change(null, status: LoadStatus.error, error: 'error');
     }
   }
 
@@ -116,15 +131,15 @@ class BangumiDetailController extends GetxController
       if (token.isEmpty) {
         return;
       }
-      collectStatusLoading(true);
+      collectStatusLoading.value = (true);
       debugPrint('BangumiDetailController-getCollectStatus');
       final response = await BangumiApi.collectStatus(id: id.value);
       if (response.statusCode == 200) {
         final data = response.data['data'];
         final type = response.data['type'] ?? 999;
-        collectStatus(data);
-        collectType(type);
-        collectStatusLoading(false);
+        collectStatus.value = (data);
+        collectType.value = (type);
+        collectStatusLoading.value = (false);
       } else {
         throw Error();
       }
@@ -140,16 +155,16 @@ class BangumiDetailController extends GetxController
       if (token.isEmpty) {
         return;
       }
-      collectStatusLoading(true);
+      collectStatusLoading.value = (true);
       debugPrint('BangumiDetailController-changeCollect');
       debugPrint('$id ${collectTypeList[index]}');
       final response = await BangumiApi.changeCollect(
           id: id.value, type: collectTypeList[index]);
       if (response.statusCode == 200) {
         final data = response.data['data'];
-        collectStatus(data);
-        collectType(index);
-        collectStatusLoading(false);
+        collectStatus.value = (data);
+        collectType.value = (index);
+        collectStatusLoading.value = (false);
         SmartDialog.showToast('操作成功');
       } else {
         throw Error();
@@ -167,15 +182,15 @@ class BangumiDetailController extends GetxController
       if (token.isEmpty) {
         return;
       }
-      collectStatusLoading(true);
+      collectStatusLoading.value = (true);
       debugPrint('BangumiDetailController-cancelCollect');
       final response = await BangumiApi.cancelCollect(id: id.value);
       if (response.statusCode == 200) {
         // final data = response.data['data'];
         // final type = response.data['type'] ?? 999;
-        collectStatus(false);
-        collectType(999);
-        collectStatusLoading(false);
+        collectStatus.value = (false);
+        collectType.value = (999);
+        collectStatusLoading.value = (false);
         SmartDialog.showToast('取消成功');
       } else {
         throw Error();
@@ -202,7 +217,7 @@ class BangumiDetailController extends GetxController
                       rightIcon: false,
                       title: '我想看的',
                       onTap: () {
-                        Get.back();
+                        appPop();
                         changeCollect(0);
                       },
                     ),
@@ -211,7 +226,7 @@ class BangumiDetailController extends GetxController
                       rightIcon: false,
                       title: '我在看的',
                       onTap: () {
-                        Get.back();
+                        appPop();
                         changeCollect(1);
                       },
                     ),
@@ -220,7 +235,7 @@ class BangumiDetailController extends GetxController
                       rightIcon: false,
                       title: '我看过的',
                       onTap: () {
-                        Get.back();
+                        appPop();
                         changeCollect(2);
                       },
                     ),
@@ -252,7 +267,7 @@ class BangumiDetailController extends GetxController
                             rightIcon: false,
                             title: '我想看的',
                             onTap: () {
-                              Get.back();
+                              appPop();
                               changeCollect(0);
                             },
                           ),
@@ -268,7 +283,7 @@ class BangumiDetailController extends GetxController
                             rightIcon: false,
                             title: '我在看的',
                             onTap: () {
-                              Get.back();
+                              appPop();
                               changeCollect(1);
                             },
                           ),
@@ -284,7 +299,7 @@ class BangumiDetailController extends GetxController
                             rightIcon: false,
                             title: '我看过的',
                             onTap: () {
-                              Get.back();
+                              appPop();
                               changeCollect(2);
                             },
                           ),
@@ -301,7 +316,7 @@ class BangumiDetailController extends GetxController
                             title: '取消收藏',
                             color: Colors.red,
                             onTap: () {
-                              Get.back();
+                              appPop();
                               cancelCollect();
                             },
                           )
@@ -318,33 +333,34 @@ class BangumiDetailController extends GetxController
 
   @override
   void dispose() {
-    tabController.dispose();
     super.dispose();
   }
 }
 
-class BangumiDetailIndexController extends GetxController with StateMixin {
-  List result = [];
-  RxBool isLoading = false.obs;
+class BangumiDetailIndexController extends LoadableController<dynamic> {
+  BangumiDetailIndexController() {
+    _init();
+  }
 
-  @override
-  void onInit() {
+  List result = [];
+  final ValueNotifier<bool> isLoading = ValueNotifier(false);
+
+  void _init() {
     get();
-    super.onInit();
   }
 
   // 获取数据
   void get() async {
     try {
       debugPrint('BangumiDetailIndexController-get');
-      change(result, status: RxStatus.loading());
+      change(result, status: LoadStatus.loading);
       // final response = await BangumiApi.getBangumiList();
       // final data = bangumi_list_.fromBuffer(response.data);
       // result.addAll(data.data);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
-      change(null, status: RxStatus.error('error'));
+      change(null, status: LoadStatus.error, error: 'error');
     }
   }
 
@@ -352,15 +368,15 @@ class BangumiDetailIndexController extends GetxController with StateMixin {
   void more() async {
     try {
       debugPrint('BangumiDetailIndexController-more');
-      isLoading(true);
+      isLoading.value = (true);
       // final response = await BangumiApi.getBangumiList(skip: result.last.id);
       // final data = bangumi_list_.fromBuffer(response.data);
       // result.addAll(data.data);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
     }
-    isLoading(false);
+    isLoading.value = (false);
   }
 
   // 刷新
@@ -371,7 +387,7 @@ class BangumiDetailIndexController extends GetxController with StateMixin {
       // final data = bangumi_list_.fromBuffer(response.data);
       // result.clear();
       // result.addAll(data.data);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
     }
@@ -379,30 +395,30 @@ class BangumiDetailIndexController extends GetxController with StateMixin {
   }
 }
 
-class BangumiDetailEpisodesController extends GetxController
-    with StateMixin<List<bangumi_episodes_data_>> {
-  List<bangumi_episodes_data_> result = [];
-  RxBool isLoading = false.obs;
+class BangumiDetailEpisodesController
+    extends LoadableController<List<bangumi_episodes_data_>> {
+  BangumiDetailEpisodesController(this.id);
+  final int id;
 
-  @override
-  void onInit() {
+  List<bangumi_episodes_data_> result = [];
+  final ValueNotifier<bool> isLoading = ValueNotifier(false);
+
+  void _init() {
     get();
-    super.onInit();
   }
 
   // 获取数据
   void get() async {
     try {
       debugPrint('BangumiDetailEpisodesController-get');
-      change(result, status: RxStatus.loading());
-      final response =
-          await BangumiApi.getBangumiEpisodes(id: Get.arguments.id);
+      change(result, status: LoadStatus.loading);
+      final response = await BangumiApi.getBangumiEpisodes(id: id);
       final data = bangumi_episodes_.fromBuffer(response.data);
       result.addAll(data.data);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
-      change(null, status: RxStatus.error('error'));
+      change(null, status: LoadStatus.error, error: 'error');
     }
   }
 
@@ -410,27 +426,26 @@ class BangumiDetailEpisodesController extends GetxController
   // void more() async {
   //   try {
   //     debugPrint('BangumiDetailEpisodesController-more');
-  //     isLoading(true);
+  //     isLoading.value = (true);
   //     // final response = await BangumiApi.getBangumiList(skip: result.last.id);
   //     // final data = bangumi_list_.fromBuffer(response.data);
   //     // result.addAll(data.data);
-  //     change(result, status: RxStatus.success());
+  //     change(result, status: LoadStatus.success);
   //   } catch (e) {
   //     debugPrint(e.toString());
   //   }
-  //   isLoading(false);
+  //   isLoading.value = (false);
   // }
 
   // 刷新
   Future<bool> reload() async {
     try {
       debugPrint('BangumiDetailEpisodesController-reload');
-      final response =
-          await BangumiApi.getBangumiEpisodes(id: Get.arguments.id);
+      final response = await BangumiApi.getBangumiEpisodes(id: id);
       final data = bangumi_episodes_.fromBuffer(response.data);
       result.clear();
       result.addAll(data.data);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
     }
@@ -438,31 +453,31 @@ class BangumiDetailEpisodesController extends GetxController
   }
 }
 
-class BangumiDetailRelatedController extends GetxController
-    with StateMixin<List<bangumi_related_data_>> {
+class BangumiDetailRelatedController
+    extends LoadableController<List<bangumi_related_data_>> {
+  BangumiDetailRelatedController(int id) {
+    _init();
+  }
   List<bangumi_related_data_> result = [];
-  RxBool isLoading = false.obs;
-  RxInt id = 0.obs;
+  final ValueNotifier<bool> isLoading = ValueNotifier(false);
+  final ValueNotifier<int> id = ValueNotifier(0);
 
-  @override
-  void onInit() {
-    id(Get.arguments.id);
+  void _init() {
     get();
-    super.onInit();
   }
 
   // 获取数据
   void get() async {
     try {
       debugPrint('BangumiDetailRelatedController-get');
-      change(result, status: RxStatus.loading());
-      final response = await BangumiApi.getBangumiRelated(id: Get.arguments.id);
+      change(result, status: LoadStatus.loading);
+      final response = await BangumiApi.getBangumiRelated(id: id.value);
       final data = bangumi_related_.fromBuffer(response.data);
       result.addAll(data.data);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
-      change(null, status: RxStatus.error('error'));
+      change(null, status: LoadStatus.error, error: 'error');
     }
   }
 
@@ -470,26 +485,26 @@ class BangumiDetailRelatedController extends GetxController
   // void more() async {
   //   try {
   //     debugPrint('BangumiDetailRelatedController-more');
-  //     isLoading(true);
+  //     isLoading.value = (true);
   //     // final response = await BangumiApi.getBangumiList(skip: result.last.id);
   //     // final data = bangumi_list_.fromBuffer(response.data);
   //     // result.addAll(data.data);
-  //     change(result, status: RxStatus.success());
+  //     change(result, status: LoadStatus.success);
   //   } catch (e) {
   //     debugPrint(e.toString());
   //   }
-  //   isLoading(false);
+  //   isLoading.value = (false);
   // }
 
   // 刷新
   Future<bool> reload() async {
     try {
       debugPrint('BangumiDetailRelatedController-reload');
-      final response = await BangumiApi.getBangumiRelated(id: Get.arguments.id);
+      final response = await BangumiApi.getBangumiRelated(id: id.value);
       final data = bangumi_related_.fromBuffer(response.data);
       result.clear();
       result.addAll(data.data);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
     }
@@ -497,29 +512,32 @@ class BangumiDetailRelatedController extends GetxController
   }
 }
 
-class BangumiDetailCharactersController extends GetxController
-    with StateMixin<List<bangumi_characters_data_>> {
-  List<bangumi_characters_data_> result = [];
-  RxBool isLoading = false.obs;
+class BangumiDetailCharactersController
+    extends LoadableController<List<bangumi_characters_data_>> {
+  BangumiDetailCharactersController(this.id) {
+    _init();
+  }
+  final int id;
 
-  @override
-  void onInit() {
+  List<bangumi_characters_data_> result = [];
+  final ValueNotifier<bool> isLoading = ValueNotifier(false);
+
+  void _init() {
     get();
-    super.onInit();
   }
 
   // 获取数据
   void get() async {
     try {
       debugPrint('BangumiDetailCharactersController-get');
-      change(null, status: RxStatus.loading());
-      final response = await BangumiApi.getCharacters(id: Get.arguments.id);
+      change(null, status: LoadStatus.loading);
+      final response = await BangumiApi.getCharacters(id: id);
       final data = bangumi_characters_.fromBuffer(response.data);
       result.addAll(data.data);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
-      change(null, status: RxStatus.error('error'));
+      change(null, status: LoadStatus.error, error: 'error');
     }
   }
 
@@ -527,11 +545,11 @@ class BangumiDetailCharactersController extends GetxController
   Future<bool> reload() async {
     try {
       debugPrint('BangumiDetailCharactersController-reload');
-      final response = await BangumiApi.getCharacters(id: Get.arguments.id);
+      final response = await BangumiApi.getCharacters(id: id);
       final data = bangumi_characters_.fromBuffer(response.data);
       result.clear();
       result.addAll(data.data);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
     }
@@ -539,29 +557,32 @@ class BangumiDetailCharactersController extends GetxController
   }
 }
 
-class BangumiDetailPersonsController extends GetxController
-    with StateMixin<List<bangumi_persons_data_>> {
-  List<bangumi_persons_data_> result = [];
-  RxBool isLoading = false.obs;
+class BangumiDetailPersonsController
+    extends LoadableController<List<bangumi_persons_data_>> {
+  BangumiDetailPersonsController(this.id) {
+    _init();
+  }
+  final int id;
 
-  @override
-  void onInit() {
+  List<bangumi_persons_data_> result = [];
+  final ValueNotifier<bool> isLoading = ValueNotifier(false);
+
+  void _init() {
     get();
-    super.onInit();
   }
 
   // 获取数据
   void get() async {
     try {
       debugPrint('BangumiDetailPersonsController-get');
-      change(null, status: RxStatus.loading());
-      final response = await BangumiApi.getPersons(id: Get.arguments.id);
+      change(null, status: LoadStatus.loading);
+      final response = await BangumiApi.getPersons(id: id);
       final data = bangumi_persons_.fromBuffer(response.data);
       result.addAll(data.data);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
-      change(null, status: RxStatus.error('error'));
+      change(null, status: LoadStatus.error, error: 'error');
     }
   }
 
@@ -569,11 +590,11 @@ class BangumiDetailPersonsController extends GetxController
   Future<bool> reload() async {
     try {
       debugPrint('BangumiDetailPersonsController-reload');
-      final response = await BangumiApi.getPersons(id: Get.arguments.id);
+      final response = await BangumiApi.getPersons(id: id);
       final data = bangumi_persons_.fromBuffer(response.data);
       result.clear();
       result.addAll(data.data);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
     }

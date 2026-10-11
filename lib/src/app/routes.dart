@@ -304,10 +304,9 @@ class AppRouter {
   static BangumiDetailModel? _detailData(Object? args) =>
       args is BangumiDetailArguments ? args.data : null;
 
-  static thread_list_data_? _threadData(Object? args) =>
-      args is ThreadArguments
-          ? args.data
-          : (args is thread_list_data_ ? args : null);
+  static thread_list_data_? _threadData(Object? args) => args is ThreadArguments
+      ? args.data
+      : (args is thread_list_data_ ? args : null);
 
   static int? _toInt(dynamic v) {
     if (v is int) return v;
@@ -326,8 +325,7 @@ Future<T?> appPushNamed<T extends Object?>(String routeName,
 Future<T?> appPushReplacementNamed<T extends Object?, TO extends Object?>(
         String routeName,
         {Object? arguments}) =>
-    appNavigator!.pushReplacementNamed<T, TO>(routeName,
-        arguments: arguments);
+    appNavigator!.pushReplacementNamed<T, TO>(routeName, arguments: arguments);
 
 /// 便捷导航：替代 `Get.back`。
 void appPop<T extends Object?>([T? result]) => appNavigator?.pop(result);

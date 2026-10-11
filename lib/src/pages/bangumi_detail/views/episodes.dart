@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:get/get.dart';
 import 'package:xs/src/pages/bangumi_detail/controller.dart';
 import 'package:xs/src/pages/bangumi_detail/models/bangumi_detail_model.dart';
 import 'package:xs/src/utils/time.dart';
 import 'package:xs/src/widgets/keepalive.dart';
 import 'package:xs/src/widgets/subordinate_scroll_controller.dart';
+import 'package:xs/src/app/routes.dart';
+import 'package:xs/src/widgets/controller_builder.dart';
 
 class BangumiDetailEpisodesView extends StatelessWidget {
-  const BangumiDetailEpisodesView({super.key, this.active = false, this.data});
+  const BangumiDetailEpisodesView(
+      {super.key, required this.id, this.active = false, this.data});
+  final int id;
   final bool active;
   final BangumiDetailModel? data;
 
@@ -24,11 +27,9 @@ class BangumiDetailEpisodesView extends StatelessWidget {
           ? Brightness.dark
           : Brightness.light,
     ));
-    return GetBuilder(
-        id: Get.currentRoute,
-        global: false,
-        init: BangumiDetailEpisodesController(),
-        builder: (controller) {
+    return ControllerBuilder(
+        create: () => BangumiDetailEpisodesController(id),
+        builder: (context, controller) {
           return SafeArea(
             top: false,
             bottom: false,
@@ -45,7 +46,7 @@ class BangumiDetailEpisodesView extends StatelessWidget {
                     bool isTop = metrics.pixels == 0;
                     if (isTop) {
                     } else {
-                      // if (controller.isLoading.isFalse) {
+                      // if (!controller.isLoading.value) {
                       //   controller.more();
                       // }
                     }
@@ -58,7 +59,7 @@ class BangumiDetailEpisodesView extends StatelessWidget {
                   onRefresh: () async {
                     await controller.reload();
                   },
-                  child: controller.obx((state) {
+                  child: controller.obx((context, state) {
                     return CustomScrollView(
                       key: const PageStorageKey('bangumi-detail-episodes'),
                       controller:
@@ -83,13 +84,12 @@ class BangumiDetailEpisodesView extends StatelessWidget {
                               itemBuilder: (context, index) {
                                 return GestureDetector(
                                   onTap: () {
-                                    Get.toNamed('/vod/${Get.arguments.id}',
-                                        arguments: {
-                                          'id': Get.arguments.id,
-                                          'episode': state[index].sort,
-                                          'data': data,
-                                          'episodes': state
-                                        });
+                                    appPushNamed('/vod/${id}', arguments: {
+                                      'id': id,
+                                      'episode': state[index].sort,
+                                      'data': data,
+                                      'episodes': state
+                                    });
                                     // ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                                     //   behavior: SnackBarBehavior.floating,
                                     //   margin: const EdgeInsets.only(
@@ -248,12 +248,10 @@ class BangumiDetailEpisodesView extends StatelessWidget {
                                                       color: Colors.transparent,
                                                       child: InkWell(
                                                         onTap: () {
-                                                          Get.toNamed(
-                                                              '/vod/${Get.arguments.id}',
+                                                          appPushNamed(
+                                                              '/vod/${id}',
                                                               arguments: {
-                                                                'id': Get
-                                                                    .arguments
-                                                                    .id,
+                                                                'id': id,
                                                                 'episode':
                                                                     state[index]
                                                                         .sort,
@@ -272,7 +270,7 @@ class BangumiDetailEpisodesView extends StatelessWidget {
                                                           //   content:
                                                           //       Text(state[index].title),
                                                           // ));
-                                                          // Get.toNamed('/thread/${state[index].id}',
+                                                          // appPushNamed('/thread/${state[index].id}',
                                                           //     arguments: state[index]);
                                                         },
                                                       ),

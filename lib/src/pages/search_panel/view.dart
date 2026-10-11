@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:xs/src/pages/search_panel/controller.dart';
 import 'package:xs/src/widgets/drag_to_move_bar.dart';
+import 'package:xs/src/app/routes.dart';
+import 'package:xs/src/pages/search/models/search_type.dart';
 
 class SearchPanelPage extends StatefulWidget {
-  const SearchPanelPage({super.key});
+  const SearchPanelPage(
+      {super.key, required this.type, this.keyword, this.hintText});
+  final SearchType type;
+  final String? keyword;
+  final String? hintText;
 
   @override
   State<SearchPanelPage> createState() => _SearchPanelPageState();
@@ -13,12 +18,15 @@ class SearchPanelPage extends StatefulWidget {
 }
 
 class _SearchPanelPageState extends State<SearchPanelPage> with RouteAware {
-  final SearchPanelController _searchController =
-      Get.put(SearchPanelController());
+  late final SearchPanelController _searchController;
 
   @override
   void initState() {
     super.initState();
+    _searchController = SearchPanelController(
+        searchType: widget.type,
+        keyword: widget.keyword,
+        hintText: widget.hintText);
   }
 
   @override
@@ -52,7 +60,7 @@ class _SearchPanelPageState extends State<SearchPanelPage> with RouteAware {
             titleSpacing: 0,
             leading: IconButton(
               onPressed: () {
-                Get.back();
+                appPop();
               },
               icon: const Icon(
                 Icons.arrow_back,
@@ -66,8 +74,9 @@ class _SearchPanelPageState extends State<SearchPanelPage> with RouteAware {
               ),
               const SizedBox(width: 10)
             ],
-            title: Obx(
-              () => TextField(
+            title: ListenableBuilder(
+              listenable: _searchController.controller,
+              builder: (context, _) => TextField(
                 autofocus: true,
                 focusNode: _searchController.searchFocusNode,
                 controller: _searchController.controller.value,

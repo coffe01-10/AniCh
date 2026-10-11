@@ -81,7 +81,8 @@ class _CommentItemState extends State<CommentItem> {
       child: InkWell(
         onTap: () {},
         child: Container(
-          padding: const EdgeInsets.only(top: 5, bottom: 0, left: 10, right: 10),
+          padding:
+              const EdgeInsets.only(top: 5, bottom: 0, left: 10, right: 10),
           child: Column(
             children: [
               Row(
@@ -121,9 +122,8 @@ class _CommentItemState extends State<CommentItem> {
                         Opacity(
                           opacity: 0.6,
                           child: Text(
-                            Time.dateFormat(
-                                DateTime.parse(comment['created'])
-                                    .millisecondsSinceEpoch),
+                            Time.dateFormat(DateTime.parse(comment['created'])
+                                .millisecondsSinceEpoch),
                             style: const TextStyle(fontSize: 12),
                           ),
                         ),
@@ -176,9 +176,7 @@ class _CommentItemState extends State<CommentItem> {
                                               : null,
                                         ),
                                         Text(
-                                          _likeCount > 0
-                                              ? '$_likeCount'
-                                              : '点赞',
+                                          _likeCount > 0 ? '$_likeCount' : '点赞',
                                           style: TextStyle(
                                             color: _like
                                                 ? Theme.of(context)

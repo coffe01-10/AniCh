@@ -19,13 +19,11 @@ class BangumiVodCommentsView extends StatefulWidget {
       {super.key, required this.bangumiVodPageController});
 
   @override
-  State<BangumiVodCommentsView> createState() =>
-      _BangumiVodCommentsViewState();
+  State<BangumiVodCommentsView> createState() => _BangumiVodCommentsViewState();
 }
 
 class _BangumiVodCommentsViewState extends State<BangumiVodCommentsView> {
-  BangumiVodPageController get vodController =>
-      widget.bangumiVodPageController;
+  BangumiVodPageController get vodController => widget.bangumiVodPageController;
 
   CommentController? _commentController;
   String _commentId = '';
@@ -90,8 +88,8 @@ class _BangumiVodCommentsViewState extends State<BangumiVodCommentsView> {
                 top: true,
                 bottom: true,
                 maintainBottomViewPadding: true,
-                minimum: const EdgeInsets.only(
-                    top: 0, bottom: 0, left: 0, right: 0),
+                minimum:
+                    const EdgeInsets.only(top: 0, bottom: 0, left: 0, right: 0),
                 child: Stack(
                   children: [
                     NotificationListener<ScrollEndNotification>(
@@ -121,12 +119,11 @@ class _BangumiVodCommentsViewState extends State<BangumiVodCommentsView> {
                           slivers: [
                             SliverOverlapInjector(
                                 handle: NestedScrollView
-                                    .sliverOverlapAbsorberHandleFor(
-                                        context)),
+                                    .sliverOverlapAbsorberHandleFor(context)),
                             SliverToBoxAdapter(
                               child: Container(
-                                color: Theme.of(context)
-                                    .scaffoldBackgroundColor,
+                                color:
+                                    Theme.of(context).scaffoldBackgroundColor,
                                 child: Row(
                                   children: [
                                     Container(
@@ -147,8 +144,7 @@ class _BangumiVodCommentsViewState extends State<BangumiVodCommentsView> {
                                 primary: true,
                                 shrinkWrap: true,
                                 itemBuilder: (itemBuilder, index) {
-                                  Map comment =
-                                      controller.comments[index];
+                                  Map comment = controller.comments[index];
                                   return CommentItem(
                                     comment,
                                     controller: controller,
@@ -156,18 +152,15 @@ class _BangumiVodCommentsViewState extends State<BangumiVodCommentsView> {
                                       showModalBottomSheet(
                                         context: appContext,
                                         isScrollControlled: true,
-                                        builder: (context) =>
-                                            ReplyNewDialog(
+                                        builder: (context) => ReplyNewDialog(
                                           id: id,
                                           sendFn: (json) async {
                                             appNavigator?.pop();
                                             final data =
-                                                await controller
-                                                    .replyComment(
-                                                        json: json,
-                                                        parent: comment[
-                                                            'id'],
-                                                        reply: null);
+                                                await controller.replyComment(
+                                                    json: json,
+                                                    parent: comment['id'],
+                                                    reply: null);
                                             if (data.isNotEmpty) {
                                               comment['replies'].add(data);
                                               controller.refresh();
@@ -180,8 +173,7 @@ class _BangumiVodCommentsViewState extends State<BangumiVodCommentsView> {
                                       return controller.likeComment(id);
                                     },
                                     cancelLikeFn: (id) {
-                                      return controller
-                                          .cancelLikeComment(id);
+                                      return controller.cancelLikeComment(id);
                                     },
                                   );
                                 },
@@ -200,8 +192,7 @@ class _BangumiVodCommentsViewState extends State<BangumiVodCommentsView> {
                       left: 0,
                       right: 0,
                       child: Container(
-                        color:
-                            Theme.of(context).scaffoldBackgroundColor,
+                        color: Theme.of(context).scaffoldBackgroundColor,
                         height: 50,
                         child: Column(
                           children: [
@@ -218,10 +209,8 @@ class _BangumiVodCommentsViewState extends State<BangumiVodCommentsView> {
                                         _showReplySheet();
                                       },
                                       child: Container(
-                                        padding:
-                                            const EdgeInsets.symmetric(
-                                                vertical: 10,
-                                                horizontal: 10),
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 10, horizontal: 10),
                                         width: double.infinity,
                                         color: Theme.of(context)
                                             .primaryColor

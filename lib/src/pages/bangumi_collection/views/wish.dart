@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:get/get.dart';
 import 'package:xs/src/pages/bangumi_collection/controller.dart';
 import 'package:xs/src/widgets/keepalive.dart';
 import 'package:xs/src/widgets/subordinate_scroll_controller.dart';
+import 'package:xs/src/app/routes.dart';
+import 'package:xs/src/widgets/controller_builder.dart';
 
 class BangumiWishCollectionView extends StatelessWidget {
   const BangumiWishCollectionView({super.key, this.active = false});
@@ -21,9 +22,9 @@ class BangumiWishCollectionView extends StatelessWidget {
           ? Brightness.dark
           : Brightness.light,
     ));
-    return GetBuilder(
-        init: BangumiWishCollectionController(),
-        builder: (controller) {
+    return ControllerBuilder(
+        create: () => BangumiWishCollectionController(),
+        builder: (context, controller) {
           return SafeArea(
             top: false,
             bottom: false,
@@ -40,7 +41,7 @@ class BangumiWishCollectionView extends StatelessWidget {
                     bool isTop = metrics.pixels == 0;
                     if (isTop) {
                     } else {
-                      if (controller.isLoading.isFalse) {
+                      if (!controller.isLoading.value) {
                         controller.more();
                       }
                     }
@@ -54,7 +55,7 @@ class BangumiWishCollectionView extends StatelessWidget {
                     await controller.reload();
                   },
                   child: controller.obx(
-                    (state) {
+                    (context, state) {
                       return Stack(
                         children: [
                           CustomScrollView(
@@ -80,7 +81,7 @@ class BangumiWishCollectionView extends StatelessWidget {
                                     itemBuilder: (context, index) {
                                       return GestureDetector(
                                         onTap: () {
-                                          Get.toNamed(
+                                          appPushNamed(
                                               '/bangumi/${state[index].id}',
                                               arguments: state[index]);
                                           // ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -202,7 +203,7 @@ class BangumiWishCollectionView extends StatelessWidget {
                                                                 .transparent,
                                                             child: InkWell(
                                                               onTap: () {
-                                                                Get.toNamed(
+                                                                appPushNamed(
                                                                     '/bangumi/${state[index].id}',
                                                                     arguments:
                                                                         state[
@@ -243,28 +244,33 @@ class BangumiWishCollectionView extends StatelessWidget {
                                       );
                                     }),
                               ),
-                              SliverToBoxAdapter(child: Obx(() {
-                                return SizedBox(
-                                    height: 5,
-                                    child: Visibility(
-                                      visible: controller.isLoading.isTrue,
-                                      maintainSize: false,
-                                      maintainSemantics: false,
-                                      maintainAnimation: false,
-                                      child: LinearProgressIndicator(
-                                          backgroundColor: Colors.grey,
-                                          valueColor: AlwaysStoppedAnimation(
-                                              Theme.of(context)
-                                                  .colorScheme
-                                                  .primary)),
-                                    ));
-                              }))
+                              SliverToBoxAdapter(
+                                  child: ListenableBuilder(
+                                      listenable: controller.isLoading,
+                                      builder: (context, _) {
+                                        return SizedBox(
+                                            height: 5,
+                                            child: Visibility(
+                                              visible:
+                                                  controller.isLoading.value,
+                                              maintainSize: false,
+                                              maintainSemantics: false,
+                                              maintainAnimation: false,
+                                              child: LinearProgressIndicator(
+                                                  backgroundColor: Colors.grey,
+                                                  valueColor:
+                                                      AlwaysStoppedAnimation(
+                                                          Theme.of(context)
+                                                              .colorScheme
+                                                              .primary)),
+                                            ));
+                                      }))
                             ],
                           ),
                         ],
                       );
                     },
-                    onError: (error) {
+                    onError: (context, error) {
                       return const Text('加载失败');
                     },
                   ),

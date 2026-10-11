@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:get/get.dart';
 import 'package:xs/src/pages/person/controller.dart';
 import 'package:xs/src/widgets/keepalive.dart';
 import 'package:xs/src/widgets/subordinate_scroll_controller.dart';
+import 'package:xs/src/app/routes.dart';
+import 'package:xs/src/widgets/controller_builder.dart';
 
 const String assetName = 'assets/images/no_image.svg';
 final Widget noImage = SvgPicture.asset(assetName);
 
 class PersonIndexView extends StatelessWidget {
-  const PersonIndexView({super.key, this.active = false});
+  const PersonIndexView({super.key, required this.id, this.active = false});
+  final int id;
   final bool active;
 
   @override
@@ -22,9 +24,9 @@ class PersonIndexView extends StatelessWidget {
           ? Brightness.dark
           : Brightness.light,
     ));
-    return GetBuilder(
-        init: PersonIndexController(),
-        builder: (controller) {
+    return ControllerBuilder(
+        create: () => PersonIndexController(id),
+        builder: (context, controller) {
           return SafeArea(
             top: false,
             bottom: false,
@@ -41,7 +43,7 @@ class PersonIndexView extends StatelessWidget {
                     bool isTop = metrics.pixels == 0;
                     if (isTop) {
                     } else {
-                      if (controller.isLoading.isFalse) {
+                      if (!controller.isLoading.value) {
                         controller.more();
                       }
                     }
@@ -55,7 +57,7 @@ class PersonIndexView extends StatelessWidget {
                     await controller.reload();
                   },
                   child: controller.obx(
-                    (state) {
+                    (context, state) {
                       return CustomScrollView(
                         key: const PageStorageKey('person-index'),
                         controller:
@@ -79,7 +81,8 @@ class PersonIndexView extends StatelessWidget {
                                 itemBuilder: (context, index) {
                                   return GestureDetector(
                                     onTap: () {
-                                      Get.toNamed('/bangumi/${state[index].id}',
+                                      appPushNamed(
+                                          '/bangumi/${state[index].id}',
                                           arguments: state[index]);
                                     },
                                     child: MouseRegion(
@@ -192,7 +195,7 @@ class PersonIndexView extends StatelessWidget {
                                                             Colors.transparent,
                                                         child: InkWell(
                                                           onTap: () {
-                                                            Get.toNamed(
+                                                            appPushNamed(
                                                                 '/bangumi/${state[index].id}',
                                                                 arguments:
                                                                     state[
@@ -231,26 +234,30 @@ class PersonIndexView extends StatelessWidget {
                                   );
                                 }),
                           ),
-                          SliverToBoxAdapter(child: Obx(() {
-                            return SizedBox(
-                                height: 5,
-                                child: Visibility(
-                                  visible: controller.isLoading.isTrue,
-                                  maintainSize: false,
-                                  maintainSemantics: false,
-                                  maintainAnimation: false,
-                                  child: LinearProgressIndicator(
-                                      backgroundColor: Colors.grey,
-                                      valueColor: AlwaysStoppedAnimation(
-                                          Theme.of(context)
-                                              .colorScheme
-                                              .primary)),
-                                ));
-                          }))
+                          SliverToBoxAdapter(
+                              child: ListenableBuilder(
+                                  listenable: controller.isLoading,
+                                  builder: (context, _) {
+                                    return SizedBox(
+                                        height: 5,
+                                        child: Visibility(
+                                          visible: controller.isLoading.value,
+                                          maintainSize: false,
+                                          maintainSemantics: false,
+                                          maintainAnimation: false,
+                                          child: LinearProgressIndicator(
+                                              backgroundColor: Colors.grey,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation(
+                                                      Theme.of(context)
+                                                          .colorScheme
+                                                          .primary)),
+                                        ));
+                                  }))
                         ],
                       );
                     },
-                    onError: (error) {
+                    onError: (context, error) {
                       return const Text('加载失败');
                     },
                   ),

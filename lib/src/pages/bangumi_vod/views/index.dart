@@ -48,23 +48,20 @@ class BangumiVodIndexView extends StatelessWidget {
                         InkWell(
                           onTap: () {
                             controller.player.pause();
-                            appPushNamed(
-                                '/bangumi/${controller.episode}',
+                            appPushNamed('/bangumi/${controller.episode}',
                                 arguments: controller.data);
                           },
                           child: Text(
                             controller.data?.title ?? '',
                             style: TextStyle(
-                                color:
-                                    Theme.of(context).colorScheme.primary,
+                                color: Theme.of(context).colorScheme.primary,
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold),
                           ),
                         ),
                         Text('第${controller.episode}集 ${ep.title}',
                             style: const TextStyle(fontSize: 14)),
-                        Text(
-                            '放送时间: ${Time.dateTimeFormat(ep.airdate.toInt())}',
+                        Text('放送时间: ${Time.dateTimeFormat(ep.airdate.toInt())}',
                             style: const TextStyle(fontSize: 14)),
                         ExpandableText(
                           '本集概况: ${ep.overview.isNotEmpty ? ep.overview : '暂无'}',
@@ -78,8 +75,7 @@ class BangumiVodIndexView extends StatelessWidget {
                               Text(
                                 '选集',
                                 style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold),
+                                    fontSize: 12, fontWeight: FontWeight.bold),
                               )
                             ],
                           ),
@@ -89,8 +85,7 @@ class BangumiVodIndexView extends StatelessWidget {
                           child: ListView.builder(
                             scrollDirection: Axis.horizontal,
                             shrinkWrap: true,
-                            controller:
-                                controller.playListScrollController,
+                            controller: controller.playListScrollController,
                             itemBuilder: (itemBuilder, index) {
                               return GestureDetector(
                                 onTap: () {
@@ -110,8 +105,7 @@ class BangumiVodIndexView extends StatelessWidget {
                                         : 0.6,
                                     child: Container(
                                       width: 150,
-                                      margin: const EdgeInsets.only(
-                                          right: 10),
+                                      margin: const EdgeInsets.only(right: 10),
                                       padding: const EdgeInsets.all(0.0),
                                       child: Column(
                                         crossAxisAlignment:
@@ -121,8 +115,7 @@ class BangumiVodIndexView extends StatelessWidget {
                                             child: Container(
                                               decoration: BoxDecoration(
                                                   borderRadius:
-                                                      BorderRadius.circular(
-                                                          7),
+                                                      BorderRadius.circular(7),
                                                   color: Colors.grey
                                                       .withOpacity(0.1)),
                                               child: ClipRRect(
@@ -134,15 +127,13 @@ class BangumiVodIndexView extends StatelessWidget {
                                                           .bottomCenter,
                                                   children: [
                                                     Container(
-                                                      decoration:
-                                                          BoxDecoration(
+                                                      decoration: BoxDecoration(
                                                         borderRadius:
                                                             BorderRadius
                                                                 .circular(7),
                                                       ),
                                                       child: controller
-                                                              .episodes[
-                                                                  index]
+                                                              .episodes[index]
                                                               .image
                                                               .isNotEmpty
                                                           ? Image.network(
@@ -154,8 +145,7 @@ class BangumiVodIndexView extends StatelessWidget {
                                                                   .infinity,
                                                               height: double
                                                                   .infinity,
-                                                              fit: BoxFit
-                                                                  .cover,
+                                                              fit: BoxFit.cover,
                                                               errorBuilder:
                                                                   (context,
                                                                       error,
@@ -172,8 +162,7 @@ class BangumiVodIndexView extends StatelessWidget {
                                                         children: [
                                                           Visibility(
                                                             visible: true,
-                                                            maintainSize:
-                                                                false,
+                                                            maintainSize: false,
                                                             maintainSemantics:
                                                                 false,
                                                             maintainAnimation:
@@ -184,19 +173,18 @@ class BangumiVodIndexView extends StatelessWidget {
                                                                       .only(
                                                                       top: 1,
                                                                       left: 5,
-                                                                      right:
-                                                                          5,
+                                                                      right: 5,
                                                                       bottom:
                                                                           3),
                                                               margin:
                                                                   const EdgeInsets
                                                                       .only(
-                                                                      right:
-                                                                          5),
+                                                                      right: 5),
                                                               decoration: BoxDecoration(
                                                                   borderRadius:
-                                                                      BorderRadius.circular(
-                                                                          5),
+                                                                      BorderRadius
+                                                                          .circular(
+                                                                              5),
                                                                   color: Colors
                                                                       .black
                                                                       .withAlpha(
@@ -222,8 +210,7 @@ class BangumiVodIndexView extends StatelessWidget {
                                                                         index]
                                                                     .duration >
                                                                 0,
-                                                            maintainSize:
-                                                                false,
+                                                            maintainSize: false,
                                                             maintainSemantics:
                                                                 false,
                                                             maintainAnimation:
@@ -234,30 +221,29 @@ class BangumiVodIndexView extends StatelessWidget {
                                                                       .only(
                                                                       top: 1,
                                                                       left: 5,
-                                                                      right:
-                                                                          5,
+                                                                      right: 5,
                                                                       bottom:
                                                                           3),
                                                               margin:
                                                                   const EdgeInsets
                                                                       .only(
-                                                                      right:
-                                                                          5),
+                                                                      right: 5),
                                                               decoration: BoxDecoration(
                                                                   borderRadius:
-                                                                      BorderRadius.circular(
-                                                                          5),
+                                                                      BorderRadius
+                                                                          .circular(
+                                                                              5),
                                                                   color: Colors
                                                                       .black
                                                                       .withAlpha(
                                                                           120)),
                                                               child: Text(
                                                                 Duration(
-                                                                        seconds:
-                                                                            controller.episodes[index].duration)
+                                                                        seconds: controller
+                                                                            .episodes[index]
+                                                                            .duration)
                                                                     .toString()
-                                                                    .split(
-                                                                        '.')
+                                                                    .split('.')
                                                                     .first,
                                                                 style: const TextStyle(
                                                                     color: Colors
@@ -271,8 +257,7 @@ class BangumiVodIndexView extends StatelessWidget {
                                                       ),
                                                     ),
                                                     Material(
-                                                      color: Colors
-                                                          .transparent,
+                                                      color: Colors.transparent,
                                                       child: InkWell(
                                                         onTap: () {
                                                           if (controller
@@ -301,12 +286,10 @@ class BangumiVodIndexView extends StatelessWidget {
                                           ),
                                           Text(
                                             '第${controller.episodes[index].sort}集 ${controller.episodes[index].title}',
-                                            overflow:
-                                                TextOverflow.ellipsis,
+                                            overflow: TextOverflow.ellipsis,
                                             style: TextStyle(
                                                 fontSize: 15,
-                                                color: controller
-                                                            .episode ==
+                                                color: controller.episode ==
                                                         controller
                                                             .episodes[index]
                                                             .sort
@@ -324,8 +307,7 @@ class BangumiVodIndexView extends StatelessWidget {
                                               Time.dateTimeFormat(controller
                                                   .episodes[index].airdate
                                                   .toInt()),
-                                              overflow:
-                                                  TextOverflow.ellipsis,
+                                              overflow: TextOverflow.ellipsis,
                                               style: const TextStyle(
                                                 fontSize: 11,
                                               ),

@@ -1,8 +1,31 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import 'package:xs/src/services/loading_state.dart';
+import 'package:xs/src/widgets/controller_builder.dart';
 
-class DownloadPageController extends GetxController
-    with StateMixin, GetTickerProviderStateMixin {
+class DownloadPageController extends LoadableController<dynamic>
+    implements VsyncAttachable {
+  TickerProvider? _vsync;
+
+  @override
+  void attach(TickerProvider vsync) {
+    _vsync = vsync;
+    tabController =
+        TabController(vsync: vsync, length: tabs.length, initialIndex: 0);
+    tabController.addListener(() {
+      tabIndex.value = (tabController.index);
+    });
+    animationController = AnimationController(
+      vsync: vsync,
+      duration: const Duration(milliseconds: 500),
+    );
+  }
+
+  @override
+  void detach() {
+    tabController.dispose();
+    animationController.dispose();
+  }
+
   // 导航栏
   final List<Tab> tabs = <Tab>[
     const Tab(
@@ -20,29 +43,12 @@ class DownloadPageController extends GetxController
   ];
 
   late TabController tabController;
-  RxInt tabIndex = 0.obs;
+  final ValueNotifier<int> tabIndex = ValueNotifier(0);
 
   late final AnimationController animationController;
 
   @override
-  void onInit() {
-    super.onInit();
-
-    tabController =
-        TabController(vsync: this, length: tabs.length, initialIndex: 0);
-    tabController.addListener(() {
-      tabIndex(tabController.index);
-    });
-
-    animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 500),
-    );
-  }
-
-  @override
   void dispose() {
-    tabController.dispose();
     super.dispose();
   }
 }

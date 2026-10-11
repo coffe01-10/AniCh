@@ -126,6 +126,7 @@ class AppStyle {
 
   static const edgeInsetsT4 = EdgeInsets.only(top: 4);
   static const edgeInsetsT8 = EdgeInsets.only(top: 8);
+  static const edgeInsetsT12 = EdgeInsets.only(top: 12);
   static const edgeInsetsT24 = EdgeInsets.only(top: 24);
 
   static const edgeInsetsB4 = EdgeInsets.only(bottom: 4);

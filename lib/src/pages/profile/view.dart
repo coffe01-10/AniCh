@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:xs/src/pages/profile/controller.dart';
 import 'package:xs/src/utils/app_style.dart';
@@ -11,6 +10,8 @@ import 'package:xs/src/widgets/multi_sliver_compat/sliver_persistent_header_dele
 import 'package:xs/src/widgets/navbar.dart';
 import 'package:xs/src/widgets/settings/settings_action.dart';
 import 'package:xs/src/widgets/settings/settings_card.dart';
+import 'package:xs/src/app/routes.dart';
+import 'package:xs/src/widgets/controller_builder.dart';
 
 const String assetName = 'assets/images/no_image.svg';
 final Widget noImage = SvgPicture.asset(assetName);
@@ -20,12 +21,12 @@ class ProfilePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    RxInt scrollHeight = 0.obs;
-    RxBool scrollStatus = true.obs;
-    RxDouble maxShrinkOpacity = 1.0.obs;
-    return GetBuilder(
-        init: ProfilePageController(),
-        builder: (controller) {
+    final ValueNotifier<int> scrollHeight = ValueNotifier(0);
+    final ValueNotifier<bool> scrollStatus = ValueNotifier(true);
+    final ValueNotifier<double> maxShrinkOpacity = ValueNotifier(1.0);
+    return ControllerBuilder(
+        create: () => ProfilePageController(),
+        builder: (context, controller) {
           return Scaffold(
             extendBody: true,
             backgroundColor: Theme.of(context).dialogBackgroundColor,
@@ -43,18 +44,18 @@ class ProfilePage extends StatelessWidget {
                       if (pixels > scrollHeight.value) {
                         if (notification.depth > 0 &&
                             lastScrollStatus != false) {
-                          scrollStatus(false);
+                          scrollStatus.value = (false);
                           controller.animationController.forward();
                           debugPrint('向下');
                         }
                       } else if (pixels < scrollHeight.value) {
                         if (lastScrollStatus != true) {
-                          scrollStatus(true);
+                          scrollStatus.value = (true);
                           controller.animationController.reverse();
                           debugPrint('向上');
                         }
                       }
-                      scrollHeight(pixels);
+                      scrollHeight.value = (pixels);
                     }
                     return false;
                   },
@@ -69,37 +70,38 @@ class ProfilePage extends StatelessWidget {
                           pinned: true,
                           delegate: CustomSliverPersistentHeaderDelegate(
                             onMaxOffset: (offset) {
-                              maxShrinkOpacity(1 - offset);
+                              maxShrinkOpacity.value = (1 - offset);
                             },
                             child: Material(
                               color: Theme.of(context).dialogBackgroundColor,
                               child: CustomDragToMoveArea(
-                                child: Obx(
-                                  () {
-                                    return Opacity(
-                                      opacity: maxShrinkOpacity.value,
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 10, vertical: 5),
-                                        constraints:
-                                            const BoxConstraints(minHeight: 50),
-                                        child: Row(
-                                          children: [
-                                            const Expanded(
-                                              child: Text('个人中心',
-                                                  style:
-                                                      TextStyle(fontSize: 16)),
-                                            ),
-                                            closeWindowButton(
-                                                positioned: false,
-                                                padding: const EdgeInsets.only(
-                                                    left: 10)),
-                                          ],
+                                child: ListenableBuilder(
+                                    listenable: maxShrinkOpacity,
+                                    builder: (context, _) {
+                                      return Opacity(
+                                        opacity: maxShrinkOpacity.value,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 10, vertical: 5),
+                                          constraints: const BoxConstraints(
+                                              minHeight: 50),
+                                          child: Row(
+                                            children: [
+                                              const Expanded(
+                                                child: Text('个人中心',
+                                                    style: TextStyle(
+                                                        fontSize: 16)),
+                                              ),
+                                              closeWindowButton(
+                                                  positioned: false,
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                          left: 10)),
+                                            ],
+                                          ),
                                         ),
-                                      ),
-                                    );
-                                  },
-                                ),
+                                      );
+                                    }),
                               ),
                             ),
                           )),
@@ -119,7 +121,7 @@ class ProfilePage extends StatelessWidget {
                       NavItem(
                           icon: Icons.arrow_back,
                           title: '返回',
-                          onTap: () => Get.back())
+                          onTap: () => appPop())
                     ],
                   ),
                 )
@@ -232,28 +234,28 @@ class ProfileView extends StatelessWidget {
                           SettingsAction(
                             title: '观看记录',
                             onTap: () {
-                              Get.toNamed('/play_history');
+                              appPushNamed('/play_history');
                             },
                           ),
                           AppStyle.divider,
                           // SettingsAction(
                           //   title: '离线缓存',
                           //   onTap: () {
-                          //     Get.toNamed('/download');
+                          //     appPushNamed('/download');
                           //   },
                           // ),
                           // AppStyle.divider,
                           SettingsAction(
                             title: '追番列表',
                             onTap: () {
-                              Get.toNamed('/bangumi_collection');
+                              appPushNamed('/bangumi_collection');
                             },
                           ),
                           AppStyle.divider,
                           SettingsAction(
                             title: '图片收藏',
                             onTap: () {
-                              Get.toNamed('/thread_collection');
+                              appPushNamed('/thread_collection');
                             },
                           ),
                         ],
@@ -269,28 +271,28 @@ class ProfileView extends StatelessWidget {
                           SettingsAction(
                             title: '账号管理',
                             onTap: () {
-                              Get.toNamed('/account_settings');
+                              appPushNamed('/account_settings');
                             },
                           ),
                           AppStyle.divider,
                           SettingsAction(
                             title: '外观设置',
                             onTap: () {
-                              Get.toNamed('/theme_settings');
+                              appPushNamed('/theme_settings');
                             },
                           ),
                           AppStyle.divider,
                           SettingsAction(
                             title: '弹幕设置',
                             onTap: () {
-                              Get.toNamed('/danmaku_settings');
+                              appPushNamed('/danmaku_settings');
                             },
                           ),
                           AppStyle.divider,
                           SettingsAction(
                             title: '版本信息',
                             onTap: () {
-                              Get.toNamed('/info');
+                              appPushNamed('/info');
                             },
                           ),
                         ],

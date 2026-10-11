@@ -151,9 +151,8 @@ class PagedListController<T> extends ChangeNotifier {
       notifyListeners();
     }
     try {
-      final PagedResult<T> page = _refresher != null
-          ? await _refresher!()
-          : await _fetcher(0);
+      final PagedResult<T> page =
+          _refresher != null ? await _refresher!() : await _fetcher(0);
       _items
         ..clear()
         ..addAll(page.items);

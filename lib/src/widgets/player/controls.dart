@@ -52,7 +52,7 @@ Widget playerControls(
         );
       }
       return buildControls(
-        videoState.context.orientation == Orientation.portrait,
+        MediaQuery.orientationOf(videoState.context) == Orientation.portrait,
         videoState,
         controller,
       );
@@ -1018,11 +1018,10 @@ Widget buildSendDanmakuTextField(BangumiVodPageController controller) {
                             child: Container(
                               padding: const EdgeInsets.all(2),
                               decoration: BoxDecoration(
-                                border:
-                                    controller.danmakuTypeIndex.value == e.key
-                                        ? Border.all(
-                                            color: Colors.white, width: 1)
-                                        : null,
+                                border: controller.danmakuTypeIndex.value ==
+                                        e.key
+                                    ? Border.all(color: Colors.white, width: 1)
+                                    : null,
                                 borderRadius: BorderRadius.circular(5),
                               ),
                               child: Text(

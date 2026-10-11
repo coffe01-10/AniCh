@@ -1,11 +1,36 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:xs/protobuf/list.pb.dart';
 import 'package:xs/src/apis/tags.dart';
+import 'package:xs/src/services/loading_state.dart';
+import 'package:xs/src/widgets/controller_builder.dart';
 
-class TagsController extends GetxController
-    with StateMixin, GetTickerProviderStateMixin {
-  RxString tag = ''.obs;
+class TagsController extends LoadableController<dynamic>
+    implements VsyncAttachable {
+  TagsController(String tag) : tag = ValueNotifier(tag);
+
+  TickerProvider? _vsync;
+
+  @override
+  void attach(TickerProvider vsync) {
+    _vsync = vsync;
+    tabController =
+        TabController(vsync: vsync, length: tabs.length, initialIndex: 0);
+    tabController.addListener(() {
+      tabIndex.value = (tabController.index);
+    });
+    animationController = AnimationController(
+      vsync: vsync,
+      duration: const Duration(milliseconds: 500),
+    );
+  }
+
+  @override
+  void detach() {
+    tabController.dispose();
+    animationController.dispose();
+  }
+
+  late final ValueNotifier<String> tag;
   tag_info_body_ result = tag_info_body_();
 
   // 导航栏
@@ -31,73 +56,57 @@ class TagsController extends GetxController
   ];
 
   late TabController tabController;
-  RxInt tabIndex = 0.obs;
+  final ValueNotifier<int> tabIndex = ValueNotifier(0);
 
   late final AnimationController animationController;
 
-  @override
-  void onInit() {
-    tag(Get.arguments['tag']);
+  void _init() {
     getInfo();
-    super.onInit();
-
-    tabController =
-        TabController(vsync: this, length: tabs.length, initialIndex: 0);
-    tabController.addListener(() {
-      tabIndex(tabController.index);
-    });
-
-    animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 500),
-    );
   }
 
   // 获取数据
   void getInfo() async {
     try {
       debugPrint('TagsController-getInfo');
-      change(result, status: RxStatus.loading());
+      change(result, status: LoadStatus.loading);
       final response =
           await TagsApi.getInfo(tag: Uri.encodeComponent(tag.value));
       final data = tag_info_.fromBuffer(response.data);
       result = data.body;
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
-      change(null, status: RxStatus.error('error'));
+      change(null, status: LoadStatus.error, error: 'error');
     }
   }
 }
 
-class TagsAllController extends GetxController
-    with
-        StateMixin<List<thread_list_data_>>,
-        GetSingleTickerProviderStateMixin {
-  RxString tag = ''.obs;
-  List<thread_list_data_> result = [];
-  RxBool isLoading = false.obs;
+class TagsAllController extends LoadableController<List<thread_list_data_>> {
+  TagsAllController(String tag) : tag = ValueNotifier(tag) {
+    _init();
+  }
 
-  @override
-  void onInit() {
-    tag(Get.arguments['tag']);
+  late final ValueNotifier<String> tag;
+  List<thread_list_data_> result = [];
+  final ValueNotifier<bool> isLoading = ValueNotifier(false);
+
+  void _init() {
     get();
-    super.onInit();
   }
 
   // 获取数据
   void get() async {
     try {
       debugPrint('TagsAllController-get');
-      change(result, status: RxStatus.loading());
+      change(result, status: LoadStatus.loading);
       final response =
           await TagsApi.getList(tag: tag.value, type: 'all', sort: -1);
       final data = thread_list_.fromBuffer(response.data);
       result.addAll(data.body.data);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
-      change(null, status: RxStatus.error('error'));
+      change(null, status: LoadStatus.error, error: 'error');
     }
   }
 
@@ -105,16 +114,16 @@ class TagsAllController extends GetxController
   void more() async {
     try {
       debugPrint('TagsAllController-more');
-      isLoading(true);
+      isLoading.value = (true);
       final response = await TagsApi.getList(
           tag: tag.value, type: 'all', sort: -1, skip: result.last.id);
       final data = thread_list_.fromBuffer(response.data);
       result.addAll(data.body.data);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
     }
-    isLoading(false);
+    isLoading.value = (false);
   }
 
   // 刷新
@@ -126,7 +135,7 @@ class TagsAllController extends GetxController
       final data = thread_list_.fromBuffer(response.data);
       result.clear();
       result.addAll(data.body.data);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
     }
@@ -134,34 +143,33 @@ class TagsAllController extends GetxController
   }
 }
 
-class TagsArtworkController extends GetxController
-    with
-        StateMixin<List<thread_list_data_>>,
-        GetSingleTickerProviderStateMixin {
-  RxString tag = ''.obs;
-  List<thread_list_data_> result = [];
-  RxBool isLoading = false.obs;
+class TagsArtworkController
+    extends LoadableController<List<thread_list_data_>> {
+  TagsArtworkController(String tag) : tag = ValueNotifier(tag) {
+    _init();
+  }
 
-  @override
-  void onInit() {
-    tag(Get.arguments['tag']);
+  late final ValueNotifier<String> tag;
+  List<thread_list_data_> result = [];
+  final ValueNotifier<bool> isLoading = ValueNotifier(false);
+
+  void _init() {
     get();
-    super.onInit();
   }
 
   // 获取数据
   void get() async {
     try {
       debugPrint('TagsArtworkController-get');
-      change(result, status: RxStatus.loading());
+      change(result, status: LoadStatus.loading);
       final response =
           await TagsApi.getList(tag: tag.value, type: 'artwork', sort: -1);
       final data = thread_list_.fromBuffer(response.data);
       result.addAll(data.body.data);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
-      change(null, status: RxStatus.error('error'));
+      change(null, status: LoadStatus.error, error: 'error');
     }
   }
 
@@ -169,16 +177,16 @@ class TagsArtworkController extends GetxController
   void more() async {
     try {
       debugPrint('TagsArtworkController-more');
-      isLoading(true);
+      isLoading.value = (true);
       final response = await TagsApi.getList(
           tag: tag.value, type: 'artwork', sort: -1, skip: result.last.id);
       final data = thread_list_.fromBuffer(response.data);
       result.addAll(data.body.data);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
     }
-    isLoading(false);
+    isLoading.value = (false);
   }
 
   // 刷新
@@ -190,7 +198,7 @@ class TagsArtworkController extends GetxController
       final data = thread_list_.fromBuffer(response.data);
       result.clear();
       result.addAll(data.body.data);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
     }
@@ -198,34 +206,33 @@ class TagsArtworkController extends GetxController
   }
 }
 
-class TagsCosplayController extends GetxController
-    with
-        StateMixin<List<thread_list_data_>>,
-        GetSingleTickerProviderStateMixin {
-  RxString tag = ''.obs;
-  List<thread_list_data_> result = [];
-  RxBool isLoading = false.obs;
+class TagsCosplayController
+    extends LoadableController<List<thread_list_data_>> {
+  TagsCosplayController(String tag) : tag = ValueNotifier(tag) {
+    _init();
+  }
 
-  @override
-  void onInit() {
-    tag(Get.arguments['tag']);
+  late final ValueNotifier<String> tag;
+  List<thread_list_data_> result = [];
+  final ValueNotifier<bool> isLoading = ValueNotifier(false);
+
+  void _init() {
     get();
-    super.onInit();
   }
 
   // 获取数据
   void get() async {
     try {
       debugPrint('TagsCosplayController-get');
-      change(result, status: RxStatus.loading());
+      change(result, status: LoadStatus.loading);
       final response =
           await TagsApi.getList(tag: tag.value, type: 'cosplay', sort: -1);
       final data = thread_list_.fromBuffer(response.data);
       result.addAll(data.body.data);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
-      change(null, status: RxStatus.error('error'));
+      change(null, status: LoadStatus.error, error: 'error');
     }
   }
 
@@ -233,16 +240,16 @@ class TagsCosplayController extends GetxController
   void more() async {
     try {
       debugPrint('TagsCosplayController-more');
-      isLoading(true);
+      isLoading.value = (true);
       final response = await TagsApi.getList(
           tag: tag.value, type: 'cosplay', sort: -1, skip: result.last.id);
       final data = thread_list_.fromBuffer(response.data);
       result.addAll(data.body.data);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
     }
-    isLoading(false);
+    isLoading.value = (false);
   }
 
   // 刷新
@@ -254,7 +261,7 @@ class TagsCosplayController extends GetxController
       final data = thread_list_.fromBuffer(response.data);
       result.clear();
       result.addAll(data.body.data);
-      change(result, status: RxStatus.success());
+      change(result, status: LoadStatus.success);
     } catch (e) {
       debugPrint(e.toString());
     }

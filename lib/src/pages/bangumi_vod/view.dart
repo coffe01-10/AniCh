@@ -54,8 +54,7 @@ class BangumiVodPageState extends State<BangumiVodPage>
     with TickerProviderStateMixin {
   late final BangumiVodPageController controller;
 
-  final ScrollController nestedScrollViewScrollController =
-      ScrollController();
+  final ScrollController nestedScrollViewScrollController = ScrollController();
 
   /// 顶部折叠进度（0~1），驱动标题透明度。
   final ValueNotifier<double> appBarHeight = ValueNotifier<double>(1.0);
@@ -184,8 +183,7 @@ class BangumiVodPageState extends State<BangumiVodPage>
                   ),
                   headerSliverBuilder: (context, innerBoxIsScrolled) {
                     double expandedHeight = min(
-                        (MediaQuery.of(context).size.width * 9 / 16) + 50,
-                        450);
+                        (MediaQuery.of(context).size.width * 9 / 16) + 50, 450);
                     return [
                       SliverOverlapAbsorber(
                         sliver: SliverAppBar(
@@ -194,11 +192,9 @@ class BangumiVodPageState extends State<BangumiVodPage>
                             builder: (context, heightValue, _) {
                               return CustomDragToMoveArea(
                                 child: Opacity(
-                                  opacity: max(
-                                      min(heightValue.abs(), 1.0), 0),
+                                  opacity: max(min(heightValue.abs(), 1.0), 0),
                                   child: Offstage(
-                                    offstage:
-                                        heightValue > 0.3 ? false : true,
+                                    offstage: heightValue > 0.3 ? false : true,
                                     child: Center(
                                       child: TextButton(
                                         onPressed: () {
@@ -207,8 +203,7 @@ class BangumiVodPageState extends State<BangumiVodPage>
                                         child: Wrap(
                                           spacing: 5,
                                           alignment: WrapAlignment.center,
-                                          runAlignment:
-                                              WrapAlignment.center,
+                                          runAlignment: WrapAlignment.center,
                                           children: [
                                             const Icon(
                                               Icons.play_arrow,
@@ -246,46 +241,38 @@ class BangumiVodPageState extends State<BangumiVodPage>
                               Theme.of(context).colorScheme.inverseSurface,
                           flexibleSpace: LayoutBuilder(
                             builder: (context, constraints) {
-                              WidgetsBinding.instance
-                                  .addPostFrameCallback((_) {
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
                                 double height = 1 -
                                     ((constraints.biggest.height.floor() -
-                                            MediaQuery.of(context)
-                                                .padding
-                                                .top -
+                                            MediaQuery.of(context).padding.top -
                                             100) /
                                         expandedHeight.floor());
-                                appBarHeight.value =
-                                    height <= 0.5 ? 0 : height;
+                                appBarHeight.value = height <= 0.5 ? 0 : height;
                               });
                               return ValueListenableBuilder<double>(
                                 valueListenable: appBarHeight,
                                 builder: (context, heightValue, _) {
                                   bool visible =
-                                      heightValue.floor() == 1
-                                          ? false
-                                          : true;
+                                      heightValue.floor() == 1 ? false : true;
                                   return Visibility(
                                     visible: visible,
                                     child: Opacity(
                                       opacity: min(
-                                          max((heightValue - 1).abs(),
-                                              0.0),
+                                          max((heightValue - 1).abs(), 0.0),
                                           1.0),
                                       child: FlexibleSpaceBar(
                                         background: Stack(
                                           children: [
                                             Container(
                                               padding: EdgeInsets.only(
-                                                  top:
-                                                      MediaQuery.of(context)
-                                                          .padding
-                                                          .top,
+                                                  top: MediaQuery.of(context)
+                                                      .padding
+                                                      .top,
                                                   bottom: 50),
                                               child: Stack(
                                                 children: [
-                                                  buildPhoneUI(context,
-                                                      controller),
+                                                  buildPhoneUI(
+                                                      context, controller),
                                                 ],
                                               ),
                                             )
@@ -308,18 +295,17 @@ class BangumiVodPageState extends State<BangumiVodPage>
                                   controller: controller.tabController,
                                   tabAlignment: TabAlignment.start,
                                   isScrollable: true,
-                                  indicatorSize:
-                                      TabBarIndicatorSize.label,
-                                  dividerColor: Theme.of(context)
-                                      .scaffoldBackgroundColor,
+                                  indicatorSize: TabBarIndicatorSize.label,
+                                  dividerColor:
+                                      Theme.of(context).scaffoldBackgroundColor,
                                   tabs: controller.tabs,
                                 ),
                               ),
                             ),
                           ),
                         ),
-                        handle: NestedScrollView
-                            .sliverOverlapAbsorberHandleFor(context),
+                        handle: NestedScrollView.sliverOverlapAbsorberHandleFor(
+                            context),
                       ),
                     ];
                   },

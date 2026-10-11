@@ -2,12 +2,13 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:get/get.dart';
 import 'package:xs/src/pages/bangumi_detail/controller.dart';
 import 'package:xs/src/pages/bangumi_detail/models/bangumi_detail_model.dart';
 import 'package:xs/src/widgets/expandable_text.dart';
 import 'package:xs/src/widgets/keepalive.dart';
 import 'package:xs/src/widgets/subordinate_scroll_controller.dart';
+import 'package:xs/src/app/routes.dart';
+import 'package:xs/src/widgets/controller_builder.dart';
 
 class BangumiDetailIndexView extends StatelessWidget {
   const BangumiDetailIndexView({super.key, this.active = false, this.data});
@@ -23,11 +24,9 @@ class BangumiDetailIndexView extends StatelessWidget {
           ? Brightness.dark
           : Brightness.light,
     ));
-    return GetBuilder(
-        id: Get.currentRoute,
-        global: false,
-        init: BangumiDetailIndexController(),
-        builder: (controller) {
+    return ControllerBuilder(
+        create: () => BangumiDetailIndexController(),
+        builder: (context, controller) {
           return SafeArea(
             top: false,
             bottom: false,
@@ -44,7 +43,7 @@ class BangumiDetailIndexView extends StatelessWidget {
                     bool isTop = metrics.pixels == 0;
                     if (isTop) {
                     } else {
-                      // if (controller.isLoading.isFalse) {
+                      // if (!controller.isLoading.value) {
                       //   controller.more();
                       // }
                     }
@@ -102,7 +101,7 @@ class BangumiDetailIndexView extends StatelessWidget {
                                       horizontal: 3, vertical: 3),
                                   child: TextButton(
                                       onPressed: () {
-                                        Get.toNamed('/bangumi_genre_list',
+                                        appPushNamed('/bangumi_genre_list',
                                             arguments: {
                                               'name': data!.genres?[index]
                                             });
@@ -151,7 +150,7 @@ class BangumiDetailIndexView extends StatelessWidget {
                                       horizontal: 3, vertical: 3),
                                   child: TextButton(
                                     onPressed: () {
-                                      Get.toNamed('/bangumi_mark_list',
+                                      appPushNamed('/bangumi_mark_list',
                                           arguments: {
                                             'name': data!.marks![index]?.name
                                           });

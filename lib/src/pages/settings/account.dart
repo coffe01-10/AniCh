@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:xs/src/pages/settings/controller.dart';
 import 'package:xs/src/utils/app_style.dart';
@@ -11,6 +10,9 @@ import 'package:xs/src/widgets/multi_sliver_compat/sliver_persistent_header_dele
 import 'package:xs/src/widgets/navbar.dart';
 import 'package:xs/src/widgets/settings/settings_action.dart';
 import 'package:xs/src/widgets/settings/settings_card.dart';
+import 'package:xs/src/app/navigator_key.dart';
+import 'package:xs/src/app/routes.dart';
+import 'package:xs/src/widgets/controller_builder.dart';
 
 const String assetName = 'assets/images/no_image.svg';
 final Widget noImage = SvgPicture.asset(assetName);
@@ -22,12 +24,12 @@ class AccountSettingsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     GetStorage box = GetStorage();
     final user = box.read('user');
-    RxInt scrollHeight = 0.obs;
-    RxBool scrollStatus = true.obs;
-    RxDouble maxShrinkOpacity = 1.0.obs;
-    return GetBuilder(
-        init: AccountSettingsPageController(),
-        builder: (controller) {
+    final ValueNotifier<int> scrollHeight = ValueNotifier(0);
+    final ValueNotifier<bool> scrollStatus = ValueNotifier(true);
+    final ValueNotifier<double> maxShrinkOpacity = ValueNotifier(1.0);
+    return ControllerBuilder(
+        create: () => AccountSettingsPageController(),
+        builder: (context, controller) {
           return Scaffold(
             extendBody: true,
             backgroundColor: Theme.of(context).dialogBackgroundColor,
@@ -45,18 +47,18 @@ class AccountSettingsPage extends StatelessWidget {
                       if (pixels > scrollHeight.value) {
                         if (notification.depth > 0 &&
                             lastScrollStatus != false) {
-                          scrollStatus(false);
+                          scrollStatus.value = (false);
                           controller.animationController.forward();
                           debugPrint('向下');
                         }
                       } else if (pixels < scrollHeight.value) {
                         if (lastScrollStatus != true) {
-                          scrollStatus(true);
+                          scrollStatus.value = (true);
                           controller.animationController.reverse();
                           debugPrint('向上');
                         }
                       }
-                      scrollHeight(pixels);
+                      scrollHeight.value = (pixels);
                     }
                     return false;
                   },
@@ -73,7 +75,8 @@ class AccountSettingsPage extends StatelessWidget {
                               padding: AppStyle.edgeInsetsA12.copyWith(top: 50),
                               child: Text(
                                 '修改资料',
-                                style: Get.textTheme.titleSmall,
+                                style:
+                                    Theme.of(appContext).textTheme.titleSmall,
                               ),
                             ),
                             SettingsCard(
@@ -150,7 +153,8 @@ class AccountSettingsPage extends StatelessWidget {
                               padding: AppStyle.edgeInsetsA12,
                               child: Text(
                                 '登录状态',
-                                style: Get.textTheme.titleSmall,
+                                style:
+                                    Theme.of(appContext).textTheme.titleSmall,
                               ),
                             ),
                             SettingsCard(
@@ -167,7 +171,7 @@ class AccountSettingsPage extends StatelessWidget {
                                           onTap: () {
                                             box.remove('user');
                                             box.remove('token');
-                                            Get.offAndToNamed('/');
+                                            appPushReplacementNamed('/');
                                             SmartDialog.showToast('已退出登录');
                                           },
                                         ),
@@ -192,40 +196,42 @@ class AccountSettingsPage extends StatelessWidget {
                           pinned: true,
                           delegate: CustomSliverPersistentHeaderDelegate(
                             onMaxOffset: (offset) {
-                              maxShrinkOpacity(1 - offset);
+                              maxShrinkOpacity.value = (1 - offset);
                             },
                             child: Material(
                               color: Theme.of(context).dialogBackgroundColor,
                               child: CustomDragToMoveArea(
-                                child: Obx(
-                                  () {
-                                    return Opacity(
-                                      opacity: maxShrinkOpacity.value,
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 10, vertical: 5),
-                                        constraints:
-                                            const BoxConstraints(minHeight: 50),
-                                        color: Theme.of(context)
-                                            .dialogBackgroundColor,
-                                        child: Row(
-                                          children: [
-                                            const Expanded(
-                                              child: Text(
-                                                '账号管理',
-                                                style: TextStyle(fontSize: 16),
+                                child: ListenableBuilder(
+                                    listenable: maxShrinkOpacity,
+                                    builder: (context, _) {
+                                      return Opacity(
+                                        opacity: maxShrinkOpacity.value,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 10, vertical: 5),
+                                          constraints: const BoxConstraints(
+                                              minHeight: 50),
+                                          color: Theme.of(context)
+                                              .dialogBackgroundColor,
+                                          child: Row(
+                                            children: [
+                                              const Expanded(
+                                                child: Text(
+                                                  '账号管理',
+                                                  style:
+                                                      TextStyle(fontSize: 16),
+                                                ),
                                               ),
-                                            ),
-                                            closeWindowButton(
-                                                positioned: false,
-                                                padding: const EdgeInsets.only(
-                                                    left: 10)),
-                                          ],
+                                              closeWindowButton(
+                                                  positioned: false,
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                          left: 10)),
+                                            ],
+                                          ),
                                         ),
-                                      ),
-                                    );
-                                  },
-                                ),
+                                      );
+                                    }),
                               ),
                             ),
                           )),
@@ -245,7 +251,7 @@ class AccountSettingsPage extends StatelessWidget {
                       NavItem(
                           icon: Icons.arrow_back,
                           title: '返回',
-                          onTap: () => Get.back()),
+                          onTap: () => appPop()),
                     ],
                   ),
                 )

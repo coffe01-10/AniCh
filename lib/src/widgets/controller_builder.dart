@@ -35,13 +35,17 @@ class _ControllerBuilderState<T extends ChangeNotifier>
     super.initState();
     controller = widget.create();
     final c = controller;
-    if (c is VsyncAttachable) c.attach(this);
+    if (c is VsyncAttachable) {
+      (c as VsyncAttachable).attach(this);
+    }
   }
 
   @override
   void dispose() {
     final c = controller;
-    if (c is VsyncAttachable) c.detach();
+    if (c is VsyncAttachable) {
+      (c as VsyncAttachable).detach();
+    }
     controller.dispose();
     super.dispose();
   }

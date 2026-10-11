@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:get/get.dart';
 import 'package:xs/src/pages/bangumi_detail/controller.dart';
 import 'package:xs/src/widgets/keepalive.dart';
 import 'package:xs/src/widgets/subordinate_scroll_controller.dart';
+import 'package:xs/src/app/routes.dart';
+import 'package:xs/src/widgets/controller_builder.dart';
 
 class BangumiDetailCharactersView extends StatelessWidget {
-  const BangumiDetailCharactersView({super.key, this.active = false});
+  const BangumiDetailCharactersView(
+      {super.key, required this.id, this.active = false});
+  final int id;
   final bool active;
 
   @override
@@ -21,11 +24,9 @@ class BangumiDetailCharactersView extends StatelessWidget {
           ? Brightness.dark
           : Brightness.light,
     ));
-    return GetBuilder(
-        id: Get.currentRoute,
-        global: false,
-        init: BangumiDetailCharactersController(),
-        builder: (controller) {
+    return ControllerBuilder(
+        create: () => BangumiDetailCharactersController(id),
+        builder: (context, controller) {
           return SafeArea(
             top: false,
             bottom: false,
@@ -42,7 +43,7 @@ class BangumiDetailCharactersView extends StatelessWidget {
                     bool isTop = metrics.pixels == 0;
                     if (isTop) {
                     } else {
-                      // if (controller.isLoading.isFalse) {
+                      // if (!controller.isLoading.value) {
                       //   controller.more();
                       // }
                     }
@@ -55,7 +56,7 @@ class BangumiDetailCharactersView extends StatelessWidget {
                   onRefresh: () async {
                     await controller.reload();
                   },
-                  child: controller.obx((state) {
+                  child: controller.obx((context, state) {
                     return CustomScrollView(
                       key: const PageStorageKey('bangumi-detail-characters'),
                       controller:
@@ -80,7 +81,7 @@ class BangumiDetailCharactersView extends StatelessWidget {
                               itemBuilder: (context, index) {
                                 return GestureDetector(
                                   onTap: () {
-                                    Get.toNamed('/character',
+                                    appPushNamed('/character',
                                         arguments: {'id': state[index].id});
                                   },
                                   child: MouseRegion(
@@ -180,7 +181,7 @@ class BangumiDetailCharactersView extends StatelessWidget {
                                                       color: Colors.transparent,
                                                       child: InkWell(
                                                         onTap: () {
-                                                          Get.toNamed(
+                                                          appPushNamed(
                                                               '/character',
                                                               arguments: {
                                                                 'id':
@@ -229,7 +230,7 @@ class BangumiDetailCharactersView extends StatelessWidget {
                                                             right: 5),
                                                     child: GestureDetector(
                                                       onTap: () {
-                                                        Get.toNamed('/person',
+                                                        appPushNamed('/person',
                                                             arguments: {
                                                               'id': e.id
                                                             });

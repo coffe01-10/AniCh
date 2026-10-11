@@ -197,13 +197,11 @@ class BangumiVodPageController extends PlayerController {
         final settings = DanmakuSettingsService.instance;
         showDanmakuState.value = settings.danmakuEnable.value;
         bilibiliDanmakuState.value = settings.bilibiliDanmakuEnable.value;
-        bilibiliHmtDanmakuState.value =
-            settings.bilibiliHmtDanmakuEnable.value;
+        bilibiliHmtDanmakuState.value = settings.bilibiliHmtDanmakuEnable.value;
         qqDanmakuState.value = settings.qqDanmakuEnable.value;
         if (showDanmakuState.value && danmakuController is DanmakuController) {
           if (event) {
-            int currentPosition =
-                player.state.position.inMilliseconds ~/ 1000;
+            int currentPosition = player.state.position.inMilliseconds ~/ 1000;
             if (_danmakuPosition != currentPosition) {
               _danmakuPosition = currentPosition;
             }
@@ -298,9 +296,9 @@ class BangumiVodPageController extends PlayerController {
           .where((e) =>
               double.parse((e.progress / 1000).toStringAsFixed(1)) ==
                   current / 10 &&
-              shield.shieldCheck(e.content))
+              shield.shieldCheck(e.content ?? ''))
           .map((e) => DanmakuItem(
-                e.content,
+                e.content ?? '',
                 color: ColorUtil.decimalToColor(e.color),
                 time: e.progress / 1000,
                 type: DanmakuUtils.getBilibiliPosition(e.mode),
@@ -308,15 +306,14 @@ class BangumiVodPageController extends PlayerController {
           .toList());
     }
     // 哔哩哔哩(港澳台)弹幕
-    if (bilibiliHmtDanmakuList.isNotEmpty &&
-        bilibiliHmtDanmakuState.value) {
+    if (bilibiliHmtDanmakuList.isNotEmpty && bilibiliHmtDanmakuState.value) {
       add(bilibiliHmtDanmakuList
           .where((e) =>
               double.parse((e.progress / 1000).toStringAsFixed(1)) ==
                   current / 10 &&
-              shield.shieldCheck(e.content))
+              shield.shieldCheck(e.content ?? ''))
           .map((e) => DanmakuItem(
-                e.content,
+                e.content ?? '',
                 color: ColorUtil.decimalToColor(e.color),
                 time: e.progress / 1000,
                 type: DanmakuUtils.getBilibiliPosition(e.mode),
@@ -327,11 +324,10 @@ class BangumiVodPageController extends PlayerController {
     if (qqDanmakuList.isNotEmpty && qqDanmakuState.value) {
       add(qqDanmakuList
           .where((e) =>
-              double.parse(
-                  (int.parse(e.timeOffset ?? '0') / 1000)
+              double.parse((int.parse(e.timeOffset ?? '0') / 1000)
                       .toStringAsFixed(1)) ==
                   current / 10 &&
-              shield.shieldCheck(e.content))
+              shield.shieldCheck(e.content ?? ''))
           .map((e) => DanmakuItem(
                 e.content ?? '一条弹幕',
                 color: Colors.white,
@@ -470,9 +466,9 @@ class BangumiVodPageController extends PlayerController {
           completed = true;
         } else {
           for (final item in Utils.splitList(list, 500)) {
-            onData((await compute(
-                    DanmakuShieldService.defaultShieldCheck, item))
-                .cast<dynamic>());
+            onData(
+                (await compute(DanmakuShieldService.defaultShieldCheck, item))
+                    .cast<dynamic>());
           }
           index += 1;
         }
@@ -496,8 +492,8 @@ class BangumiVodPageController extends PlayerController {
           }
           return null;
         },
-        (list) => bilibiliDanmakuList
-            .addAll(list.cast<bilibili_danmaku_item_>()),
+        (list) =>
+            bilibiliDanmakuList.addAll(list.cast<bilibili_danmaku_item_>()),
       );
 
   /// 获取哔哩哔哩(港澳台)弹幕
@@ -512,8 +508,8 @@ class BangumiVodPageController extends PlayerController {
           }
           return null;
         },
-        (list) => bilibiliHmtDanmakuList
-            .addAll(list.cast<bilibili_danmaku_item_>()),
+        (list) =>
+            bilibiliHmtDanmakuList.addAll(list.cast<bilibili_danmaku_item_>()),
       );
 
   /// 获取腾讯视频弹幕
@@ -579,8 +575,7 @@ class BangumiVodPageController extends PlayerController {
           httpHeaders: headers,
         ),
       );
-      Log.d(
-          '播放链接\r\n：${urlDecode(playUrls.value[currentLineIndex].url)}');
+      Log.d('播放链接\r\n：${urlDecode(playUrls.value[currentLineIndex].url)}');
     }
   }
 
@@ -837,8 +832,8 @@ class BangumiVodPageController extends PlayerController {
                                                 left: 5,
                                                 right: 5,
                                                 bottom: 3),
-                                            margin: const EdgeInsets.only(
-                                                right: 5),
+                                            margin:
+                                                const EdgeInsets.only(right: 5),
                                             decoration: BoxDecoration(
                                                 borderRadius:
                                                     BorderRadius.circular(5),

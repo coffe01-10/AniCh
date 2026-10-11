@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:xs/src/pages/account/controller.dart';
 import 'package:xs/src/widgets/navbar.dart';
+import 'package:xs/src/app/routes.dart';
+import 'package:xs/src/widgets/controller_builder.dart';
 
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
@@ -10,9 +11,9 @@ class LoginPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final userKey = GlobalKey<FormState>();
     final passwordKey = GlobalKey<FormState>();
-    return GetBuilder(
-        init: LoginController(),
-        builder: (controller) {
+    return ControllerBuilder(
+        create: () => LoginController(),
+        builder: (context, controller) {
           return Scaffold(
             extendBody: true,
             key: const PageStorageKey<String>('login'),
@@ -42,13 +43,15 @@ class LoginPage extends StatelessWidget {
                             if (value == null || value.isEmpty) {
                               return '请输入邮箱地址或用户ID';
                             }
-                            if (!value.isEmail && int.tryParse(value) == null) {
+                            if (!RegExp(r'^[\w.+-]+@[\w-]+(\.[\w-]+)+$')
+                                    .hasMatch(value) &&
+                                int.tryParse(value) == null) {
                               return '邮箱地址或用户ID格式错误';
                             }
                             return null;
                           },
                           onChanged: (value) {
-                            controller.user(value);
+                            controller.user.value = (value);
                           },
                           decoration: const InputDecoration(
                               labelText: '邮箱地址/ID',
@@ -82,7 +85,7 @@ class LoginPage extends StatelessWidget {
                             return null;
                           },
                           onChanged: (value) {
-                            controller.password(value);
+                            controller.password.value = (value);
                           },
                           obscureText: true,
                           decoration: const InputDecoration(
@@ -108,7 +111,7 @@ class LoginPage extends StatelessWidget {
                             }
                             final data = await controller.login();
                             if (data?.error == false) {
-                              Get.back();
+                              appPop();
                             } else {
                               // ignore: use_build_context_synchronously
                               ScaffoldMessenger.of(context)
@@ -133,7 +136,7 @@ class LoginPage extends StatelessWidget {
                           children: [
                             TextButton(
                                 onPressed: () {
-                                  Get.offAndToNamed('/change_password');
+                                  appPushReplacementNamed('/change_password');
                                 },
                                 style: ButtonStyle(
                                   padding: WidgetStateProperty.all(
@@ -144,7 +147,7 @@ class LoginPage extends StatelessWidget {
                                 child: const Text('修改密码')),
                             TextButton(
                                 onPressed: () {
-                                  Get.offAndToNamed('/register');
+                                  appPushReplacementNamed('/register');
                                 },
                                 style: ButtonStyle(
                                   padding: WidgetStateProperty.all(
@@ -162,9 +165,7 @@ class LoginPage extends StatelessWidget {
             bottomNavigationBar: NavBar(
               children: [
                 NavItem(
-                    icon: Icons.arrow_back,
-                    title: '返回',
-                    onTap: () => Get.back()),
+                    icon: Icons.arrow_back, title: '返回', onTap: () => appPop()),
               ],
             ),
           );

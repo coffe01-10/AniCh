@@ -110,8 +110,7 @@ class AniChApp extends StatelessWidget {
                           focusNode: FocusNode(),
                           onKeyEvent: (KeyEvent event) async {
                             if (event is KeyDownEvent &&
-                                event.logicalKey ==
-                                    LogicalKeyboardKey.escape) {
+                                event.logicalKey == LogicalKeyboardKey.escape) {
                               // ESC 退出全屏
                               if (!Platform.isAndroid && !Platform.isIOS) {
                                 if (await windowManager.isFullScreen()) {

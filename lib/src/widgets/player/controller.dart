@@ -107,8 +107,7 @@ mixin PlayerStateMixin on PlayerMixin {
   final ValueNotifier<bool> bilibiliDanmakuState = ValueNotifier<bool>(true);
 
   /// 哔哩哔哩（港澳台）弹幕开关
-  final ValueNotifier<bool> bilibiliHmtDanmakuState =
-      ValueNotifier<bool>(true);
+  final ValueNotifier<bool> bilibiliHmtDanmakuState = ValueNotifier<bool>(true);
 
   /// 腾讯视频弹幕开关
   final ValueNotifier<bool> qqDanmakuState = ValueNotifier<bool>(true);

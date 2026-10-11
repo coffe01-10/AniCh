@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:get/get.dart';
 import 'package:xs/src/pages/bangumi/controller.dart';
 import 'package:xs/src/widgets/keepalive.dart';
 import 'package:xs/src/widgets/subordinate_scroll_controller.dart';
+import 'package:xs/src/app/routes.dart';
+import 'package:xs/src/widgets/controller_builder.dart';
 
 class BangumiIndexView extends StatelessWidget {
   const BangumiIndexView({super.key, this.active = false});
@@ -21,10 +22,10 @@ class BangumiIndexView extends StatelessWidget {
           ? Brightness.dark
           : Brightness.light,
     ));
-    RxBool filterPanelStatus = false.obs;
-    return GetBuilder(
-        init: BangumiIndexController(),
-        builder: (controller) {
+    final ValueNotifier<bool> filterPanelStatus = ValueNotifier(false);
+    return ControllerBuilder(
+        create: () => BangumiIndexController(),
+        builder: (context, controller) {
           return SafeArea(
             top: false,
             bottom: false,
@@ -41,7 +42,7 @@ class BangumiIndexView extends StatelessWidget {
                     bool isTop = metrics.pixels == 0;
                     if (isTop) {
                     } else {
-                      if (controller.isLoading.isFalse) {
+                      if (!controller.isLoading.value) {
                         controller.more();
                       }
                     }
@@ -55,7 +56,7 @@ class BangumiIndexView extends StatelessWidget {
                     await controller.reload();
                   },
                   child: controller.obx(
-                    (state) {
+                    (context, state) {
                       return Stack(
                         children: [
                           CustomScrollView(
@@ -84,7 +85,7 @@ class BangumiIndexView extends StatelessWidget {
                                     itemBuilder: (context, index) {
                                       return GestureDetector(
                                         onTap: () {
-                                          Get.toNamed(
+                                          appPushNamed(
                                               '/bangumi/${state[index].id}',
                                               arguments: state[index]);
                                           // ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -207,7 +208,7 @@ class BangumiIndexView extends StatelessWidget {
                                                                 .transparent,
                                                             child: InkWell(
                                                               onTap: () {
-                                                                Get.toNamed(
+                                                                appPushNamed(
                                                                     '/bangumi/${state[index].id}',
                                                                     arguments:
                                                                         state[
@@ -223,7 +224,7 @@ class BangumiIndexView extends StatelessWidget {
                                                                 //   content:
                                                                 //       Text(state[index].title),
                                                                 // ));
-                                                                // Get.toNamed('/thread/${state[index].id}',
+                                                                // appPushNamed('/thread/${state[index].id}',
                                                                 //     arguments: state[index]);
                                                               },
                                                             ),
@@ -261,22 +262,27 @@ class BangumiIndexView extends StatelessWidget {
                                       );
                                     }),
                               ),
-                              SliverToBoxAdapter(child: Obx(() {
-                                return SizedBox(
-                                    height: 5,
-                                    child: Visibility(
-                                      visible: controller.isLoading.isTrue,
-                                      maintainSize: false,
-                                      maintainSemantics: false,
-                                      maintainAnimation: false,
-                                      child: LinearProgressIndicator(
-                                          backgroundColor: Colors.grey,
-                                          valueColor: AlwaysStoppedAnimation(
-                                              Theme.of(context)
-                                                  .colorScheme
-                                                  .primary)),
-                                    ));
-                              }))
+                              SliverToBoxAdapter(
+                                  child: ListenableBuilder(
+                                      listenable: controller.isLoading,
+                                      builder: (context, _) {
+                                        return SizedBox(
+                                            height: 5,
+                                            child: Visibility(
+                                              visible:
+                                                  controller.isLoading.value,
+                                              maintainSize: false,
+                                              maintainSemantics: false,
+                                              maintainAnimation: false,
+                                              child: LinearProgressIndicator(
+                                                  backgroundColor: Colors.grey,
+                                                  valueColor:
+                                                      AlwaysStoppedAnimation(
+                                                          Theme.of(context)
+                                                              .colorScheme
+                                                              .primary)),
+                                            ));
+                                      }))
                             ],
                           ),
                           Positioned(
@@ -299,8 +305,8 @@ class BangumiIndexView extends StatelessWidget {
                                         .scaffoldBackgroundColor,
                                     child: InkWell(
                                       onTap: () {
-                                        filterPanelStatus(
-                                            !filterPanelStatus.value);
+                                        filterPanelStatus.value =
+                                            (!filterPanelStatus.value);
                                       },
                                       child: Align(
                                         alignment: Alignment.center,
@@ -315,282 +321,281 @@ class BangumiIndexView extends StatelessWidget {
                                     ),
                                   ),
                                 ),
-                                Obx(() {
-                                  return Offstage(
-                                    offstage: !filterPanelStatus.value,
-                                    child: Stack(
-                                      children: [
-                                        GestureDetector(
-                                          behavior: HitTestBehavior.opaque,
-                                          onTap: () {
-                                            filterPanelStatus(
-                                                !filterPanelStatus.value);
-                                          },
-                                          onVerticalDragStart: (drag) {
-                                            filterPanelStatus(
-                                                !filterPanelStatus.value);
-                                          },
-                                          child: Container(
-                                            width: MediaQuery.of(context)
-                                                .size
-                                                .width,
-                                            height: MediaQuery.of(context)
-                                                .size
-                                                .height,
-                                            color: Colors.black12,
-                                          ),
-                                        ),
-                                        Container(
-                                          padding: const EdgeInsets.all(5),
-                                          decoration: BoxDecoration(
-                                              color: Theme.of(context)
-                                                  .scaffoldBackgroundColor),
-                                          width:
-                                              MediaQuery.of(context).size.width,
-                                          height: 165,
-                                          child: Column(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.start,
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              // 类型
-                                              Container(
-                                                color: Colors.transparent,
-                                                height: 40,
-                                                child: ListView(
-                                                  scrollDirection:
-                                                      Axis.horizontal,
-                                                  shrinkWrap: true,
-                                                  children: controller
-                                                      .typeList.entries
-                                                      .map((e) {
-                                                    return Container(
-                                                      margin:
-                                                          const EdgeInsets.all(
-                                                              5),
-                                                      child: ClipRRect(
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(7),
-                                                        child: Material(
-                                                          color: controller
-                                                                      .typeSelect
-                                                                      .value ==
-                                                                  e.key
-                                                              ? Theme.of(
-                                                                      context)
-                                                                  .colorScheme
-                                                                  .primary
-                                                                  .withAlpha(30)
-                                                              : Theme.of(
-                                                                      context)
-                                                                  .scaffoldBackgroundColor,
-                                                          child: InkWell(
-                                                            onTap: () {
-                                                              controller
-                                                                  .typeSelect(
-                                                                      e.key);
-                                                              debugPrint(
-                                                                  e.value);
-                                                            },
-                                                            child: Container(
-                                                                padding:
-                                                                    const EdgeInsets
-                                                                        .all(5),
-                                                                child: Text(
-                                                                  e.value,
-                                                                  style: TextStyle(
-                                                                      fontWeight: e
-                                                                              .key
-                                                                              .isEmpty
-                                                                          ? FontWeight
-                                                                              .bold
-                                                                          : FontWeight
-                                                                              .normal),
-                                                                )),
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    );
-                                                  }).toList(),
-                                                ),
+                                ListenableBuilder(
+                                    listenable: filterPanelStatus,
+                                    builder: (context, _) {
+                                      return Offstage(
+                                        offstage: !filterPanelStatus.value,
+                                        child: Stack(
+                                          children: [
+                                            GestureDetector(
+                                              behavior: HitTestBehavior.opaque,
+                                              onTap: () {
+                                                filterPanelStatus.value =
+                                                    (!filterPanelStatus.value);
+                                              },
+                                              onVerticalDragStart: (drag) {
+                                                filterPanelStatus.value =
+                                                    (!filterPanelStatus.value);
+                                              },
+                                              child: Container(
+                                                width: MediaQuery.of(context)
+                                                    .size
+                                                    .width,
+                                                height: MediaQuery.of(context)
+                                                    .size
+                                                    .height,
+                                                color: Colors.black12,
                                               ),
-                                              // 语言
-                                              Container(
-                                                color: Colors.transparent,
-                                                height: 40,
-                                                child: ListView(
-                                                  scrollDirection:
-                                                      Axis.horizontal,
-                                                  shrinkWrap: true,
-                                                  children: controller
-                                                      .langList.entries
-                                                      .map((e) {
-                                                    return Container(
-                                                      margin:
-                                                          const EdgeInsets.all(
-                                                              5),
-                                                      child: ClipRRect(
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(7),
-                                                        child: Material(
-                                                          color: controller
-                                                                      .langSelect
-                                                                      .value ==
-                                                                  e.key
-                                                              ? Theme.of(
-                                                                      context)
-                                                                  .colorScheme
-                                                                  .primary
-                                                                  .withAlpha(30)
-                                                              : Theme.of(
-                                                                      context)
-                                                                  .scaffoldBackgroundColor,
-                                                          child: InkWell(
-                                                            onTap: () {
-                                                              controller
-                                                                  .langSelect(
-                                                                      e.key);
-                                                              debugPrint(
-                                                                  e.value);
-                                                            },
-                                                            child: Container(
-                                                                padding:
-                                                                    const EdgeInsets
-                                                                        .all(5),
-                                                                child: Text(
-                                                                  e.value,
-                                                                  style: TextStyle(
-                                                                      fontWeight: e
-                                                                              .key
-                                                                              .isEmpty
-                                                                          ? FontWeight
-                                                                              .bold
-                                                                          : FontWeight
-                                                                              .normal),
-                                                                )),
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    );
-                                                  }).toList(),
-                                                ),
-                                              ),
-                                              // 年份
-                                              Container(
-                                                color: Colors.transparent,
-                                                height: 40,
-                                                child: ListView(
-                                                  scrollDirection:
-                                                      Axis.horizontal,
-                                                  shrinkWrap: true,
-                                                  children: controller
-                                                      .yearList.entries
-                                                      .map((e) {
-                                                    return Container(
-                                                      margin:
-                                                          const EdgeInsets.all(
-                                                              5),
-                                                      child: ClipRRect(
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(7),
-                                                        child: Material(
-                                                          color: controller
-                                                                      .yearSelect
-                                                                      .value ==
-                                                                  e.key
-                                                              ? Theme.of(
-                                                                      context)
-                                                                  .colorScheme
-                                                                  .primary
-                                                                  .withAlpha(30)
-                                                              : Theme.of(
-                                                                      context)
-                                                                  .scaffoldBackgroundColor,
-                                                          child: InkWell(
-                                                            onTap: () {
-                                                              controller
-                                                                  .yearSelect(
-                                                                      e.key);
-                                                              debugPrint(
-                                                                  e.value);
-                                                            },
-                                                            child: Container(
-                                                                padding:
-                                                                    const EdgeInsets
-                                                                        .all(5),
-                                                                child: Text(
-                                                                  e.value,
-                                                                  style: TextStyle(
-                                                                      fontWeight: e
-                                                                              .key
-                                                                              .isEmpty
-                                                                          ? FontWeight
-                                                                              .bold
-                                                                          : FontWeight
-                                                                              .normal),
-                                                                )),
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    );
-                                                  }).toList(),
-                                                ),
-                                              ),
-                                              // const SizedBox(height: 5),
-                                              ClipRRect(
-                                                borderRadius:
-                                                    BorderRadius.circular(7),
-                                                child: Material(
+                                            ),
+                                            Container(
+                                              padding: const EdgeInsets.all(5),
+                                              decoration: BoxDecoration(
                                                   color: Theme.of(context)
-                                                      .colorScheme
-                                                      .primary
-                                                      .withAlpha(30),
-                                                  child: InkWell(
-                                                    onTap: () {
-                                                      filterPanelStatus(false);
-                                                      controller.filter();
-                                                      scrollController
-                                                          .jumpTo(0);
-                                                    },
-                                                    child: Container(
-                                                      padding:
-                                                          const EdgeInsets.all(
-                                                              7),
-                                                      child: Center(
-                                                        child: Text(
-                                                          '筛选',
-                                                          style: TextStyle(
-                                                              color: Theme.of(
-                                                                      context)
-                                                                  .colorScheme
-                                                                  .primary,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold),
+                                                      .scaffoldBackgroundColor),
+                                              width: MediaQuery.of(context)
+                                                  .size
+                                                  .width,
+                                              height: 165,
+                                              child: Column(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.start,
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  // 类型
+                                                  Container(
+                                                    color: Colors.transparent,
+                                                    height: 40,
+                                                    child: ListView(
+                                                      scrollDirection:
+                                                          Axis.horizontal,
+                                                      shrinkWrap: true,
+                                                      children: controller
+                                                          .typeList.entries
+                                                          .map((e) {
+                                                        return Container(
+                                                          margin:
+                                                              const EdgeInsets
+                                                                  .all(5),
+                                                          child: ClipRRect(
+                                                            borderRadius:
+                                                                BorderRadius
+                                                                    .circular(
+                                                                        7),
+                                                            child: Material(
+                                                              color: controller
+                                                                          .typeSelect
+                                                                          .value ==
+                                                                      e.key
+                                                                  ? Theme.of(
+                                                                          context)
+                                                                      .colorScheme
+                                                                      .primary
+                                                                      .withAlpha(
+                                                                          30)
+                                                                  : Theme.of(
+                                                                          context)
+                                                                      .scaffoldBackgroundColor,
+                                                              child: InkWell(
+                                                                onTap: () {
+                                                                  controller
+                                                                      .typeSelect
+                                                                      .value = e.key;
+                                                                  debugPrint(
+                                                                      e.value);
+                                                                },
+                                                                child:
+                                                                    Container(
+                                                                        padding: const EdgeInsets
+                                                                            .all(
+                                                                            5),
+                                                                        child:
+                                                                            Text(
+                                                                          e.value,
+                                                                          style:
+                                                                              TextStyle(fontWeight: e.key.isEmpty ? FontWeight.bold : FontWeight.normal),
+                                                                        )),
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        );
+                                                      }).toList(),
+                                                    ),
+                                                  ),
+                                                  // 语言
+                                                  Container(
+                                                    color: Colors.transparent,
+                                                    height: 40,
+                                                    child: ListView(
+                                                      scrollDirection:
+                                                          Axis.horizontal,
+                                                      shrinkWrap: true,
+                                                      children: controller
+                                                          .langList.entries
+                                                          .map((e) {
+                                                        return Container(
+                                                          margin:
+                                                              const EdgeInsets
+                                                                  .all(5),
+                                                          child: ClipRRect(
+                                                            borderRadius:
+                                                                BorderRadius
+                                                                    .circular(
+                                                                        7),
+                                                            child: Material(
+                                                              color: controller
+                                                                          .langSelect
+                                                                          .value ==
+                                                                      e.key
+                                                                  ? Theme.of(
+                                                                          context)
+                                                                      .colorScheme
+                                                                      .primary
+                                                                      .withAlpha(
+                                                                          30)
+                                                                  : Theme.of(
+                                                                          context)
+                                                                      .scaffoldBackgroundColor,
+                                                              child: InkWell(
+                                                                onTap: () {
+                                                                  controller
+                                                                      .langSelect
+                                                                      .value = e.key;
+                                                                  debugPrint(
+                                                                      e.value);
+                                                                },
+                                                                child:
+                                                                    Container(
+                                                                        padding: const EdgeInsets
+                                                                            .all(
+                                                                            5),
+                                                                        child:
+                                                                            Text(
+                                                                          e.value,
+                                                                          style:
+                                                                              TextStyle(fontWeight: e.key.isEmpty ? FontWeight.bold : FontWeight.normal),
+                                                                        )),
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        );
+                                                      }).toList(),
+                                                    ),
+                                                  ),
+                                                  // 年份
+                                                  Container(
+                                                    color: Colors.transparent,
+                                                    height: 40,
+                                                    child: ListView(
+                                                      scrollDirection:
+                                                          Axis.horizontal,
+                                                      shrinkWrap: true,
+                                                      children: controller
+                                                          .yearList.entries
+                                                          .map((e) {
+                                                        return Container(
+                                                          margin:
+                                                              const EdgeInsets
+                                                                  .all(5),
+                                                          child: ClipRRect(
+                                                            borderRadius:
+                                                                BorderRadius
+                                                                    .circular(
+                                                                        7),
+                                                            child: Material(
+                                                              color: controller
+                                                                          .yearSelect
+                                                                          .value ==
+                                                                      e.key
+                                                                  ? Theme.of(
+                                                                          context)
+                                                                      .colorScheme
+                                                                      .primary
+                                                                      .withAlpha(
+                                                                          30)
+                                                                  : Theme.of(
+                                                                          context)
+                                                                      .scaffoldBackgroundColor,
+                                                              child: InkWell(
+                                                                onTap: () {
+                                                                  controller
+                                                                      .yearSelect
+                                                                      .value = e.key;
+                                                                  debugPrint(
+                                                                      e.value);
+                                                                },
+                                                                child:
+                                                                    Container(
+                                                                        padding: const EdgeInsets
+                                                                            .all(
+                                                                            5),
+                                                                        child:
+                                                                            Text(
+                                                                          e.value,
+                                                                          style:
+                                                                              TextStyle(fontWeight: e.key.isEmpty ? FontWeight.bold : FontWeight.normal),
+                                                                        )),
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        );
+                                                      }).toList(),
+                                                    ),
+                                                  ),
+                                                  // const SizedBox(height: 5),
+                                                  ClipRRect(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            7),
+                                                    child: Material(
+                                                      color: Theme.of(context)
+                                                          .colorScheme
+                                                          .primary
+                                                          .withAlpha(30),
+                                                      child: InkWell(
+                                                        onTap: () {
+                                                          filterPanelStatus
+                                                              .value = (false);
+                                                          controller.filter();
+                                                          scrollController
+                                                              .jumpTo(0);
+                                                        },
+                                                        child: Container(
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .all(7),
+                                                          child: Center(
+                                                            child: Text(
+                                                              '筛选',
+                                                              style: TextStyle(
+                                                                  color: Theme.of(
+                                                                          context)
+                                                                      .colorScheme
+                                                                      .primary,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold),
+                                                            ),
+                                                          ),
                                                         ),
                                                       ),
                                                     ),
-                                                  ),
-                                                ),
-                                              )
-                                            ],
-                                          ),
-                                        )
-                                      ],
-                                    ),
-                                  );
-                                })
+                                                  )
+                                                ],
+                                              ),
+                                            )
+                                          ],
+                                        ),
+                                      );
+                                    })
                               ],
                             ),
                           ),
                         ],
                       );
                     },
-                    onError: (error) {
+                    onError: (context, error) {
                       return const Text('加载失败');
                     },
                   ),

@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:xs/src/pages/settings/controller.dart';
 import 'package:xs/src/utils/app_style.dart';
-import 'package:xs/src/widgets/danmaku_settings/storage.dart';
+import 'package:xs/src/services/danmaku_settings_service.dart';
 import 'package:xs/src/widgets/danmaku_shield/view.dart';
 import 'package:xs/src/widgets/drag_to_move_bar.dart';
 import 'package:xs/src/widgets/multi_sliver_compat/sliver_persistent_header_delegate.dart';
@@ -14,6 +13,9 @@ import 'package:xs/src/widgets/settings/settings_action.dart';
 import 'package:xs/src/widgets/settings/settings_card.dart';
 import 'package:xs/src/widgets/settings/settings_number.dart';
 import 'package:xs/src/widgets/settings/settings_switch.dart';
+import 'package:xs/src/app/navigator_key.dart';
+import 'package:xs/src/app/routes.dart';
+import 'package:xs/src/widgets/controller_builder.dart';
 
 class DanmakuSettingsPage extends StatelessWidget {
   final Function()? onTapDanmakuShield;
@@ -28,12 +30,12 @@ class DanmakuSettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    RxInt scrollHeight = 0.obs;
-    RxBool scrollStatus = true.obs;
-    RxDouble maxShrinkOpacity = 1.0.obs;
-    return GetBuilder(
-        init: DanmakuSettingsPageController(),
-        builder: (controller) {
+    final ValueNotifier<int> scrollHeight = ValueNotifier(0);
+    final ValueNotifier<bool> scrollStatus = ValueNotifier(true);
+    final ValueNotifier<double> maxShrinkOpacity = ValueNotifier(1.0);
+    return ControllerBuilder(
+        create: () => DanmakuSettingsPageController(),
+        builder: (context, controller) {
           return Scaffold(
             extendBody: true,
             backgroundColor: Theme.of(context).dialogBackgroundColor,
@@ -51,18 +53,18 @@ class DanmakuSettingsPage extends StatelessWidget {
                       if (pixels > scrollHeight.value) {
                         if (notification.depth > 0 &&
                             lastScrollStatus != false) {
-                          scrollStatus(false);
+                          scrollStatus.value = (false);
                           controller.animationController.forward();
                           debugPrint('向下');
                         }
                       } else if (pixels < scrollHeight.value) {
                         if (lastScrollStatus != true) {
-                          scrollStatus(true);
+                          scrollStatus.value = (true);
                           controller.animationController.reverse();
                           debugPrint('向上');
                         }
                       }
-                      scrollHeight(pixels);
+                      scrollHeight.value = (pixels);
                     }
                     return false;
                   },
@@ -82,7 +84,8 @@ class DanmakuSettingsPage extends StatelessWidget {
                                     AppStyle.edgeInsetsA12.copyWith(top: 50),
                                 child: Text(
                                   '弹幕屏蔽',
-                                  style: Get.textTheme.titleSmall,
+                                  style:
+                                      Theme.of(appContext).textTheme.titleSmall,
                                 ),
                               ),
                               SettingsCard(
@@ -105,31 +108,40 @@ class DanmakuSettingsPage extends StatelessWidget {
                                     AppStyle.edgeInsetsA12.copyWith(top: 12),
                                 child: Text(
                                   '弹幕设置',
-                                  style: Get.textTheme.titleSmall,
+                                  style:
+                                      Theme.of(appContext).textTheme.titleSmall,
                                 ),
                               ),
                               SettingsCard(
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Obx(
-                                      () => SettingsSwitch(
+                                    ListenableBuilder(
+                                      listenable: Listenable.merge(<Listenable>[
+                                        DanmakuSettingsService
+                                            .instance.danmakuEnable,
+                                        if (playerController != null)
+                                          playerController!.showDanmakuState
+                                      ]),
+                                      builder: (context, _) => SettingsSwitch(
                                         title: '默认开关',
-                                        value: DanmakuSettingsStorage
-                                            .danmakuEnable.value,
+                                        value: DanmakuSettingsService
+                                            .instance.danmakuEnable.value,
                                         onChanged: (e) {
                                           playerController
                                               ?.showDanmakuState.value = e;
-                                          DanmakuSettingsStorage
+                                          DanmakuSettingsService.instance
                                               .setDanmakuEnable(e);
                                         },
                                       ),
                                     ),
                                     AppStyle.divider,
-                                    Obx(
-                                      () => SettingsNumber(
+                                    ListenableBuilder(
+                                      listenable: DanmakuSettingsService
+                                          .instance.danmakuArea,
+                                      builder: (context, _) => SettingsNumber(
                                         title: '显示区域',
-                                        value: (DanmakuSettingsStorage
+                                        value: (DanmakuSettingsService.instance
                                                     .danmakuArea.value *
                                                 100)
                                             .toInt(),
@@ -138,8 +150,8 @@ class DanmakuSettingsPage extends StatelessWidget {
                                         step: 10,
                                         unit: '%',
                                         onChanged: (e) {
-                                          DanmakuSettingsStorage.setDanmakuArea(
-                                              e / 100.0);
+                                          DanmakuSettingsService.instance
+                                              .setDanmakuArea(e / 100.0);
                                           updateDanmakuOption(
                                             danmakuController?.option
                                                 .copyWith(area: e / 100.0),
@@ -148,10 +160,12 @@ class DanmakuSettingsPage extends StatelessWidget {
                                       ),
                                     ),
                                     AppStyle.divider,
-                                    Obx(
-                                      () => SettingsNumber(
+                                    ListenableBuilder(
+                                      listenable: DanmakuSettingsService
+                                          .instance.danmakuOpacity,
+                                      builder: (context, _) => SettingsNumber(
                                         title: '不透明度',
-                                        value: (DanmakuSettingsStorage
+                                        value: (DanmakuSettingsService.instance
                                                     .danmakuOpacity.value *
                                                 100)
                                             .toInt(),
@@ -160,7 +174,7 @@ class DanmakuSettingsPage extends StatelessWidget {
                                         step: 10,
                                         unit: '%',
                                         onChanged: (e) {
-                                          DanmakuSettingsStorage
+                                          DanmakuSettingsService.instance
                                               .setDanmakuOpacity(e / 100.0);
                                           updateDanmakuOption(
                                             danmakuController?.option
@@ -170,17 +184,19 @@ class DanmakuSettingsPage extends StatelessWidget {
                                       ),
                                     ),
                                     AppStyle.divider,
-                                    Obx(
-                                      () => SettingsNumber(
+                                    ListenableBuilder(
+                                      listenable: DanmakuSettingsService
+                                          .instance.danmakuSize,
+                                      builder: (context, _) => SettingsNumber(
                                         title: '字体大小',
-                                        value: DanmakuSettingsStorage
-                                            .danmakuSize
+                                        value: DanmakuSettingsService
+                                            .instance.danmakuSize.value
                                             .toInt(),
                                         min: 8,
                                         max: 48,
                                         onChanged: (e) {
-                                          DanmakuSettingsStorage.setDanmakuSize(
-                                              e.toDouble());
+                                          DanmakuSettingsService.instance
+                                              .setDanmakuSize(e.toDouble());
                                           updateDanmakuOption(
                                             danmakuController?.option.copyWith(
                                                 fontSize: e.toDouble()),
@@ -189,17 +205,19 @@ class DanmakuSettingsPage extends StatelessWidget {
                                       ),
                                     ),
                                     AppStyle.divider,
-                                    Obx(
-                                      () => SettingsNumber(
+                                    ListenableBuilder(
+                                      listenable: DanmakuSettingsService
+                                          .instance.danmakuSize,
+                                      builder: (context, _) => SettingsNumber(
                                         title: '滚动速度',
                                         subtitle: '弹幕持续时间(秒)，越小速度越快',
-                                        value: DanmakuSettingsStorage
-                                            .danmakuSpeed
+                                        value: DanmakuSettingsService
+                                            .instance.danmakuSpeed.value
                                             .toInt(),
                                         min: 4,
                                         max: 20,
                                         onChanged: (e) {
-                                          DanmakuSettingsStorage
+                                          DanmakuSettingsService.instance
                                               .setDanmakuSpeed(e.toDouble());
                                           updateDanmakuOption(
                                             danmakuController?.option.copyWith(
@@ -216,51 +234,66 @@ class DanmakuSettingsPage extends StatelessWidget {
                                     AppStyle.edgeInsetsA12.copyWith(top: 12),
                                 child: Text(
                                   '外部弹幕',
-                                  style: Get.textTheme.titleSmall,
+                                  style:
+                                      Theme.of(appContext).textTheme.titleSmall,
                                 ),
                               ),
                               SettingsCard(
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Obx(
-                                      () => SettingsSwitch(
+                                    ListenableBuilder(
+                                      listenable: Listenable.merge(<Listenable>[
+                                        DanmakuSettingsService
+                                            .instance.bilibiliDanmakuEnable,
+                                        if (playerController != null)
+                                          playerController!.bilibiliDanmakuState
+                                      ]),
+                                      builder: (context, _) => SettingsSwitch(
                                         title: '哔哩哔哩弹幕',
-                                        value: DanmakuSettingsStorage
+                                        value: DanmakuSettingsService.instance
                                             .bilibiliDanmakuEnable.value,
                                         onChanged: (e) {
                                           playerController
                                               ?.bilibiliDanmakuState.value = e;
-                                          DanmakuSettingsStorage
+                                          DanmakuSettingsService.instance
                                               .setBilibiliDanmakuEnable(e);
                                         },
                                       ),
                                     ),
                                     AppStyle.divider,
-                                    Obx(
-                                      () => SettingsSwitch(
+                                    ListenableBuilder(
+                                      listenable: DanmakuSettingsService
+                                          .instance.bilibiliHmtDanmakuEnable,
+                                      builder: (context, _) => SettingsSwitch(
                                         title: '哔哩哔哩(港澳台)弹幕',
-                                        value: DanmakuSettingsStorage
+                                        value: DanmakuSettingsService.instance
                                             .bilibiliHmtDanmakuEnable.value,
                                         onChanged: (e) {
                                           playerController
                                               ?.bilibiliHmtDanmakuState
                                               .value = e;
-                                          DanmakuSettingsStorage
+                                          DanmakuSettingsService.instance
                                               .setBilibiliHmtDanmakuEnable(e);
                                         },
                                       ),
                                     ),
                                     AppStyle.divider,
-                                    Obx(
-                                      () => SettingsSwitch(
+                                    ListenableBuilder(
+                                      listenable: Listenable.merge(<Listenable>[
+                                        DanmakuSettingsService
+                                            .instance.qqDanmakuEnable,
+                                        if (playerController != null)
+                                          playerController!.qqDanmakuState
+                                      ]),
+                                      builder: (context, _) => SettingsSwitch(
                                         title: '腾讯视频弹幕',
-                                        value: DanmakuSettingsStorage
-                                            .qqDanmakuEnable.value,
+                                        value: DanmakuSettingsService
+                                            .instance.qqDanmakuEnable.value,
                                         onChanged: (e) {
                                           playerController
                                               ?.qqDanmakuState.value = e;
-                                          DanmakuSettingsStorage
+                                          DanmakuSettingsService.instance
                                               .setQQDanmakuEnable(e);
                                         },
                                       ),
@@ -284,40 +317,42 @@ class DanmakuSettingsPage extends StatelessWidget {
                           pinned: true,
                           delegate: CustomSliverPersistentHeaderDelegate(
                             onMaxOffset: (offset) {
-                              maxShrinkOpacity(1 - offset);
+                              maxShrinkOpacity.value = (1 - offset);
                             },
                             child: Material(
                               color: Theme.of(context).dialogBackgroundColor,
                               child: CustomDragToMoveArea(
-                                child: Obx(
-                                  () {
-                                    return Opacity(
-                                      opacity: maxShrinkOpacity.value,
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 10, vertical: 5),
-                                        constraints:
-                                            const BoxConstraints(minHeight: 50),
-                                        color: Theme.of(context)
-                                            .dialogBackgroundColor,
-                                        child: Row(
-                                          children: [
-                                            const Expanded(
-                                              child: Text(
-                                                '弹幕设置',
-                                                style: TextStyle(fontSize: 16),
+                                child: ListenableBuilder(
+                                    listenable: maxShrinkOpacity,
+                                    builder: (context, _) {
+                                      return Opacity(
+                                        opacity: maxShrinkOpacity.value,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 10, vertical: 5),
+                                          constraints: const BoxConstraints(
+                                              minHeight: 50),
+                                          color: Theme.of(context)
+                                              .dialogBackgroundColor,
+                                          child: Row(
+                                            children: [
+                                              const Expanded(
+                                                child: Text(
+                                                  '弹幕设置',
+                                                  style:
+                                                      TextStyle(fontSize: 16),
+                                                ),
                                               ),
-                                            ),
-                                            closeWindowButton(
-                                                positioned: false,
-                                                padding: const EdgeInsets.only(
-                                                    left: 10)),
-                                          ],
+                                              closeWindowButton(
+                                                  positioned: false,
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                          left: 10)),
+                                            ],
+                                          ),
                                         ),
-                                      ),
-                                    );
-                                  },
-                                ),
+                                      );
+                                    }),
                               ),
                             ),
                           )),
@@ -337,7 +372,7 @@ class DanmakuSettingsPage extends StatelessWidget {
                       NavItem(
                           icon: Icons.arrow_back,
                           title: '返回',
-                          onTap: () => Get.back()),
+                          onTap: () => appPop()),
                     ],
                   ),
                 )
