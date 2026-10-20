@@ -22,8 +22,12 @@ class CustomSliverPersistentHeaderDelegate
   @override
   Widget build(
       BuildContext context, double shrinkOffset, bool overlapsContent) {
-    maxOffset(shrinkOffset / maxExtent);
-    maxOffset(shrinkOffset / minExtent);
+    // onMaxOffset 回调会写 ValueNotifier，build 阶段不能直接触发
+    // notifyListeners；推迟到帧后执行。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      maxOffset(shrinkOffset / maxExtent);
+      maxOffset(shrinkOffset / minExtent);
+    });
     return child;
   }
 
